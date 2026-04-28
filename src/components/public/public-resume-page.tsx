@@ -132,6 +132,92 @@ export function PublicResumePage({
             </p>
           </div>
 
+          <div
+            className={cn(
+              "rounded-[24px] border border-[color:var(--resume-line)] bg-[color:var(--resume-surface)]",
+              compact ? "p-4" : "p-5 sm:p-6",
+            )}
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--resume-accent)]">
+              Education
+            </p>
+            <div className={cn("space-y-4", compact ? "mt-4 space-y-3" : "mt-5")}>
+              {resume.education.length > 0 ? (
+                resume.education.map((item) => (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "border-b border-[color:var(--resume-line)] last:border-none",
+                      compact ? "pb-3 last:pb-0" : "pb-4 last:pb-0",
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className={cn("font-semibold", compact ? "text-base" : "text-lg")}>
+                        {item.school || "学校名称"}
+                      </h3>
+                      <span className="resume-soft text-xs sm:text-sm">{item.period || ""}</span>
+                    </div>
+                    <p className="resume-soft mt-1 text-sm">
+                      {item.major || "专业"} · {item.degree || "学历"}
+                    </p>
+                    {item.gpa ? (
+                      <p className="resume-soft mt-1 text-xs">GPA：{item.gpa}</p>
+                    ) : null}
+                    {item.courses.length > 0 ? (
+                      <p className="resume-soft mt-1 text-xs">
+                        主修课程：{item.courses.join("、")}
+                      </p>
+                    ) : null}
+                  </div>
+                ))
+              ) : (
+                <p className="resume-soft text-sm">添加教育经历后展示在这里。</p>
+              )}
+            </div>
+          </div>
+
+          <div
+            className={cn(
+              "rounded-[24px] border border-[color:var(--resume-line)] bg-[color:var(--resume-surface)]",
+              compact ? "p-4" : "p-5 sm:p-6",
+            )}
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--resume-accent)]">
+              Campus
+            </p>
+            <div className={cn("space-y-4", compact ? "mt-4 space-y-3" : "mt-5")}>
+              {resume.campus.length > 0 ? (
+                resume.campus.map((item) => (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "border-b border-[color:var(--resume-line)] last:border-none",
+                      compact ? "pb-3 last:pb-0" : "pb-4 last:pb-0",
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className={cn("font-semibold", compact ? "text-sm" : "text-base")}>
+                        {item.org || "组织名称"}
+                      </h3>
+                      <span className="resume-soft text-xs">{item.period || ""}</span>
+                    </div>
+                    <p className="resume-soft mb-2 text-sm">{item.role || "角色"}</p>
+                    <ul className={cn("space-y-1 text-sm", compact ? "leading-5" : "leading-6")}>
+                      {item.highlights.map((h) => (
+                        <li key={h} className="flex gap-2">
+                          <span className={cn("mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--resume-accent)]")} />
+                          <span>{h}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              ) : (
+                <p className="resume-soft text-sm">添加校园经历后展示在这里。</p>
+              )}
+            </div>
+          </div>
+
           <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
             <div
               className={cn(

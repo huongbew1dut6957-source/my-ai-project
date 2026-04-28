@@ -7,12 +7,14 @@ import jsPDF from "jspdf";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import {
   Briefcase,
+  ExternalLink,
   FileDown,
   Link2,
   LoaderCircle,
   LogOut,
   Plus,
   Save,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { ResumePreview } from "@/components/public/resume-preview";
@@ -23,9 +25,16 @@ import {
 } from "@/components/public/resume-stage";
 import { Button } from "@/components/ui/button";
 import { demoResume } from "@/lib/data/demo-resume";
+import {
+  buildResumeSyncPayload,
+  getMarkdownEditorUrl,
+  LATEST_RESUME_MARKDOWN_KEY,
+} from "@/lib/resume-sync";
 import { themeEntries } from "@/lib/themes";
 import type {
   AwardItem,
+  CampusItem,
+  EducationItem,
   ExperienceItem,
   ProjectItem,
   RecommendationItem,
@@ -44,6 +53,22 @@ import {
   timeLabel,
 } from "@/lib/utils";
 
+interface TailorExperience {
+  id: string;
+  tailoredHighlights: string[];
+}
+
+interface TailorProject {
+  id: string;
+  tailoredDescription: string;
+  tailoredImpact: string;
+}
+
+interface TailorResponse {
+  experiences: TailorExperience[];
+  projects: TailorProject[];
+}
+
 const DRAFT_KEY = "ai-resume-platform-demo";
 
 export function DashboardShell() {
@@ -53,6 +78,10 @@ export function DashboardShell() {
   const [status, setStatus] = useState("正在载入...");
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const [jobRequirements, setJobRequirements] = useState("");
+  const [tailoringResult, setTailoringResult] = useState<TailorResponse | null>(null);
+  const [tailoringLoading, setTailoringLoading] = useState(false);
+  const [tailorError, setTailorError] = useState("");
   const [isSaving, startSaveTransition] = useTransition();
   const deferredResume = useDeferredValue(resume);
   const supabaseClient = getSupabaseBrowserClient();
@@ -161,6 +190,12 @@ export function DashboardShell() {
     }
   }, [authReady, isDemoMode, resume]);
 
+  const syncMarkdownToLocal = (profile: ResumeProfile) => {
+    const { markdown } = buildResumeSyncPayload(profile);
+    window.localStorage.setItem(LATEST_RESUME_MARKDOWN_KEY, markdown);
+    return markdown;
+  };
+
   useEffect(() => {
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
@@ -195,6 +230,8 @@ export function DashboardShell() {
     startSaveTransition(() => {
       void (async () => {
         const nextUpdatedAt = new Date().toISOString();
+        const syncPayload = buildResumeSyncPayload(resume);
+        window.localStorage.setItem(LATEST_RESUME_MARKDOWN_KEY, syncPayload.markdown);
 
         if (!supabaseClient || !session) {
           const draft = {
@@ -203,7 +240,7 @@ export function DashboardShell() {
           };
           setResume(draft);
           window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-          setStatus("已保存到浏览器本地草稿");
+          setStatus("已保存到浏览器本地草稿，并同步 Markdown");
           return;
         }
 
@@ -217,6 +254,8 @@ export function DashboardShell() {
           projects: resume.projects,
           skills: resume.skills,
           awards: resume.awards,
+          education: resume.education,
+          campus: resume.campus,
           updated_at: nextUpdatedAt,
         };
 
@@ -229,14 +268,101 @@ export function DashboardShell() {
           return;
         }
 
+        const { error: resumesError } = await supabaseClient.from("resumes").upsert(
+          {
+            user_id: session.user.id,
+            slug: resume.slug,
+            data: syncPayload.data,
+            markdown: syncPayload.markdown,
+            updated_at: nextUpdatedAt,
+          },
+          { onConflict: "user_id" },
+        );
+
+        if (resumesError) {
+          console.warn("Failed to sync resumes table:", resumesError.message);
+        }
+
         setResume((current) => ({
           ...current,
           user_id: session.user.id,
           updated_at: nextUpdatedAt,
         }));
-        setStatus("已保存到 Supabase");
+        setStatus(
+          resumesError
+            ? "已保存到 Supabase，resumes 表同步失败"
+            : "已保存到 Supabase，并同步 Markdown",
+        );
       })();
     });
+  };
+
+  const openMarkdownEditor = () => {
+    const markdown = syncMarkdownToLocal(resume);
+    const editorUrl = getMarkdownEditorUrl(markdown);
+    window.open(editorUrl, "_blank", "noopener,noreferrer");
+    setStatus("已生成最新版 Markdown，并打开 oh-my-cv 编辑器");
+  };
+
+  const handleTailor = async () => {
+    if (!jobRequirements.trim()) return;
+    setTailoringLoading(true);
+    setTailorError("");
+    setTailoringResult(null);
+
+    try {
+      const response = await fetch("/api/tailor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resume: {
+            experiences: resume.experiences,
+            projects: resume.projects,
+          },
+          jobRequirements: jobRequirements.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const err = (await response.json()) as { message?: string };
+        throw new Error(err.message ?? "请求失败");
+      }
+
+      const data = (await response.json()) as TailorResponse;
+      setTailoringResult(data);
+    } catch (err) {
+      setTailorError(err instanceof Error ? err.message : "未知错误");
+    } finally {
+      setTailoringLoading(false);
+    }
+  };
+
+  const applyTailoredExperience = (tailored: TailorExperience) => {
+    setResume((current) => ({
+      ...current,
+      experiences: current.experiences.map((exp) =>
+        exp.id === tailored.id
+          ? { ...exp, highlights: tailored.tailoredHighlights }
+          : exp,
+      ),
+    }));
+    setStatus("已应用该经历的优化建议");
+  };
+
+  const applyTailoredProject = (tailored: TailorProject) => {
+    setResume((current) => ({
+      ...current,
+      projects: current.projects.map((proj) =>
+        proj.id === tailored.id
+          ? {
+              ...proj,
+              description: tailored.tailoredDescription,
+              impact: tailored.tailoredImpact,
+            }
+          : proj,
+      ),
+    }));
+    setStatus("已应用该项目的优化建议");
   };
 
   const exportPdf = async () => {
@@ -346,6 +472,10 @@ export function DashboardShell() {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
+              <Button variant="secondary" onClick={openMarkdownEditor}>
+                <ExternalLink size={16} />
+                打开 Markdown 编辑器
+              </Button>
               <Button variant="secondary" onClick={exportPdf}>
                 <FileDown size={16} />
                 导出 PDF
@@ -432,6 +562,16 @@ export function DashboardShell() {
                   setResume((current) => ({
                     ...current,
                     basics: { ...current.basics, phone: value },
+                  }))
+                }
+              />
+              <Field
+                label="出生日期"
+                value={resume.basics.birth}
+                onChange={(value) =>
+                  setResume((current) => ({
+                    ...current,
+                    basics: { ...current.basics, birth: value },
                   }))
                 }
               />
@@ -729,6 +869,156 @@ export function DashboardShell() {
               ))}
             </div>
           </EditorCard>
+
+          <EditorCard
+            title="教育经历"
+            description="按学历由高到低填写，课程用逗号分隔。"
+            action={
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  setResume((current) => ({
+                    ...current,
+                    education: [
+                      ...current.education,
+                      {
+                        id: newId("edu"),
+                        school: "",
+                        major: "",
+                        degree: "",
+                        period: "",
+                        gpa: "",
+                        courses: [],
+                      },
+                    ],
+                  }))
+                }
+              >
+                <Plus size={15} />
+                添加教育经历
+              </Button>
+            }
+          >
+            <div className="space-y-4">
+              {resume.education.map((item) => (
+                <div key={item.id} className="rounded-[24px] border border-black/10 bg-white p-4">
+                  <div className="mb-4 flex items-center justify-between gap-4">
+                    <p className="text-sm font-semibold text-slate-900">学历卡片</p>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 text-sm text-rose-600"
+                      onClick={() =>
+                        setResume((current) => ({
+                          ...current,
+                          education: current.education.filter((entry) => entry.id !== item.id),
+                        }))
+                      }
+                    >
+                      <Trash2 size={15} />
+                      删除
+                    </button>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <EducationField item={item} field="school" label="学校" setResume={setResume} />
+                    <EducationField item={item} field="major" label="专业" setResume={setResume} />
+                    <EducationField item={item} field="degree" label="学历" setResume={setResume} />
+                    <EducationField item={item} field="period" label="时间" setResume={setResume} />
+                    <EducationField item={item} field="gpa" label="GPA" setResume={setResume} />
+                  </div>
+                  <div className="mt-4">
+                    <label className="editor-label">主修课程（逗号分隔）</label>
+                    <input
+                      className="editor-input"
+                      value={item.courses.join("、")}
+                      onChange={(event) =>
+                        setResume((current) => ({
+                          ...current,
+                          education: current.education.map((entry) =>
+                            entry.id === item.id
+                              ? { ...entry, courses: commaToArray(event.target.value) }
+                              : entry,
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </EditorCard>
+
+          <EditorCard
+            title="校园经历"
+            description="社团、学生会、志愿者等在校活动经历。"
+            action={
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  setResume((current) => ({
+                    ...current,
+                    campus: [
+                      ...current.campus,
+                      {
+                        id: newId("cam"),
+                        org: "",
+                        role: "",
+                        period: "",
+                        highlights: [],
+                      },
+                    ],
+                  }))
+                }
+              >
+                <Plus size={15} />
+                添加校园经历
+              </Button>
+            }
+          >
+            <div className="space-y-4">
+              {resume.campus.map((item) => (
+                <div key={item.id} className="rounded-[24px] border border-black/10 bg-white p-4">
+                  <div className="mb-4 flex items-center justify-between gap-4">
+                    <p className="text-sm font-semibold text-slate-900">活动卡片</p>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 text-sm text-rose-600"
+                      onClick={() =>
+                        setResume((current) => ({
+                          ...current,
+                          campus: current.campus.filter((entry) => entry.id !== item.id),
+                        }))
+                      }
+                    >
+                      <Trash2 size={15} />
+                      删除
+                    </button>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <CampusField item={item} field="org" label="组织" setResume={setResume} />
+                    <CampusField item={item} field="role" label="角色" setResume={setResume} />
+                    <CampusField item={item} field="period" label="时间" setResume={setResume} />
+                  </div>
+                  <div className="mt-4">
+                    <label className="editor-label">活动亮点（每行一条）</label>
+                    <textarea
+                      className="editor-input min-h-28"
+                      value={item.highlights.join("\n")}
+                      onChange={(event) =>
+                        setResume((current) => ({
+                          ...current,
+                          campus: current.campus.map((entry) =>
+                            entry.id === item.id
+                              ? { ...entry, highlights: linesToArray(event.target.value) }
+                              : entry,
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </EditorCard>
         </section>
 
         <section className="space-y-5">
@@ -913,6 +1203,133 @@ export function DashboardShell() {
               ) : null}
             </div>
           </EditorCard>
+
+          <EditorCard
+            title="岗位优化（AI）"
+            description="粘贴目标岗位描述，AI 会重写你的经历与项目描述以提高匹配度。"
+          >
+            <div className="space-y-4">
+              <div>
+                <label className="editor-label">目标岗位描述 / 要求</label>
+                <textarea
+                  className="editor-input min-h-32"
+                  value={jobRequirements}
+                  onChange={(e) => {
+                    setJobRequirements(e.target.value);
+                    setTailoringResult(null);
+                    setTailorError("");
+                  }}
+                  placeholder="粘贴岗位 JD、技术栈要求、职责描述..."
+                />
+              </div>
+
+              <Button
+                onClick={handleTailor}
+                disabled={tailoringLoading || !jobRequirements.trim()}
+              >
+                {tailoringLoading ? (
+                  <LoaderCircle className="animate-spin" size={16} />
+                ) : (
+                  <Sparkles size={16} />
+                )}
+                {tailoringLoading ? "AI 优化中..." : "生成优化版"}
+              </Button>
+
+              {tailorError ? (
+                <p className="text-sm text-rose-600">{tailorError}</p>
+              ) : null}
+
+              {tailoringResult ? (
+                <div className="space-y-6">
+                  {tailoringResult.experiences.map((item) => {
+                    const original = resume.experiences.find((e) => e.id === item.id);
+                    if (!original) return null;
+                    return (
+                      <div key={item.id} className="rounded-[24px] border border-black/10 bg-white p-4">
+                        <div className="mb-3 flex items-center justify-between">
+                          <p className="text-sm font-semibold text-slate-900">
+                            {original.role} @ {original.company}
+                          </p>
+                          <Button
+                            variant="secondary"
+                            onClick={() => applyTailoredExperience(item)}
+                          >
+                            应用
+                          </Button>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">原文</p>
+                            <ul className="space-y-1 text-sm text-slate-600">
+                              {original.highlights.map((h, i) => (
+                                <li key={i} className="flex gap-2">
+                                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />
+                                  <span>{h}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-600">优化后</p>
+                            <ul className="space-y-1 text-sm text-slate-900">
+                              {item.tailoredHighlights.map((h, i) => (
+                                <li key={i} className="flex gap-2">
+                                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+                                  <span>{h}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {tailoringResult.projects.map((item) => {
+                    const original = resume.projects.find((p) => p.id === item.id);
+                    if (!original) return null;
+                    return (
+                      <div key={item.id} className="rounded-[24px] border border-black/10 bg-white p-4">
+                        <div className="mb-3 flex items-center justify-between">
+                          <p className="text-sm font-semibold text-slate-900">
+                            {original.title}
+                          </p>
+                          <Button
+                            variant="secondary"
+                            onClick={() => applyTailoredProject(item)}
+                          >
+                            应用
+                          </Button>
+                        </div>
+                        <div className="mb-3">
+                          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">描述</p>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+                              {original.description}
+                            </div>
+                            <div className="rounded-xl bg-emerald-50 p-3 text-sm text-slate-900">
+                              {item.tailoredDescription}
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">影响</p>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+                              {original.impact}
+                            </div>
+                            <div className="rounded-xl bg-emerald-50 p-3 text-sm text-slate-900">
+                              {item.tailoredImpact}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          </EditorCard>
         </section>
       </div>
 
@@ -1086,6 +1503,66 @@ function AwardField({
           setResume((current) => ({
             ...current,
             awards: current.awards.map((entry) =>
+              entry.id === item.id ? { ...entry, [field]: event.target.value } : entry,
+            ),
+          }))
+        }
+      />
+    </div>
+  );
+}
+
+function EducationField({
+  item,
+  field,
+  label,
+  setResume,
+}: {
+  item: EducationItem;
+  field: keyof Pick<EducationItem, "school" | "major" | "degree" | "period" | "gpa">;
+  label: string;
+  setResume: React.Dispatch<React.SetStateAction<ResumeProfile>>;
+}) {
+  return (
+    <div>
+      <label className="editor-label">{label}</label>
+      <input
+        className="editor-input"
+        value={item[field]}
+        onChange={(event) =>
+          setResume((current) => ({
+            ...current,
+            education: current.education.map((entry) =>
+              entry.id === item.id ? { ...entry, [field]: event.target.value } : entry,
+            ),
+          }))
+        }
+      />
+    </div>
+  );
+}
+
+function CampusField({
+  item,
+  field,
+  label,
+  setResume,
+}: {
+  item: CampusItem;
+  field: keyof Pick<CampusItem, "org" | "role" | "period">;
+  label: string;
+  setResume: React.Dispatch<React.SetStateAction<ResumeProfile>>;
+}) {
+  return (
+    <div>
+      <label className="editor-label">{label}</label>
+      <input
+        className="editor-input"
+        value={item[field]}
+        onChange={(event) =>
+          setResume((current) => ({
+            ...current,
+            campus: current.campus.map((entry) =>
               entry.id === item.id ? { ...entry, [field]: event.target.value } : entry,
             ),
           }))

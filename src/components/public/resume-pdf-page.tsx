@@ -119,6 +119,50 @@ export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
             </div>
           </PdfSection>
 
+          <PdfSection title="教育经历">
+            <div className="space-y-3">
+              {resume.education.length > 0 ? (
+                resume.education.map((item) => (
+                  <div key={item.id}>
+                    <div className="flex items-start justify-between gap-3 text-[12px]">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[13px] font-bold">{item.school}</h3>
+                        <span className="font-semibold">{item.major} · {item.degree}</span>
+                      </div>
+                      <span className="shrink-0" style={{ color: "#404040" }}>{item.period}</span>
+                    </div>
+                    {item.gpa ? (
+                      <p className="mt-1 text-[11px]" style={{ color: "#404040" }}>GPA：{item.gpa}</p>
+                    ) : null}
+                    {item.courses.length > 0 ? (
+                      <p className="mt-1 text-[11px]" style={{ color: "#404040" }}>主修课程：{item.courses.join("、")}</p>
+                    ) : null}
+                  </div>
+                ))
+              ) : (
+                <p className="text-[11px]" style={{ color: "#404040" }}>暂未填写教育经历</p>
+              )}
+            </div>
+          </PdfSection>
+
+          <PdfSection title="校园经历">
+            <div className="space-y-3">
+              {resume.campus.length > 0 ? (
+                resume.campus.map((item) => (
+                  <EntryBlock
+                    key={item.id}
+                    title={item.org}
+                    subtitle={item.role}
+                    meta={item.period}
+                    bullets={item.highlights}
+                  />
+                ))
+              ) : (
+                <p className="text-[11px]" style={{ color: "#404040" }}>暂未填写校园经历</p>
+              )}
+            </div>
+          </PdfSection>
+
           <PdfSection title="项目经历">
             <div className="space-y-3">
               {resume.projects.map((project) => (

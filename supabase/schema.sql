@@ -10,6 +10,8 @@ create table if not exists public.resume_profiles (
   projects jsonb not null default '[]'::jsonb,
   skills jsonb not null default '[]'::jsonb,
   awards jsonb not null default '[]'::jsonb,
+  education jsonb not null default '[]'::jsonb,
+  campus jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -59,3 +61,46 @@ on public.resume_profiles
 for delete
 using (auth.uid() = user_id);
 
+create table if not exists public.resumes (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  slug text not null,
+  data jsonb not null default '{}'::jsonb,
+  markdown text not null default '',
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists resumes_slug_idx on public.resumes (slug);
+
+drop trigger if exists resumes_set_updated_at on public.resumes;
+create trigger resumes_set_updated_at
+before update on public.resumes
+for each row
+execute function public.handle_resume_profiles_updated_at();
+
+alter table public.resumes enable row level security;
+
+drop policy if exists "Users can read their own resumes" on public.resumes;
+create policy "Users can read their own resumes"
+on public.resumes
+for select
+using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert their own resumes" on public.resumes;
+create policy "Users can insert their own resumes"
+on public.resumes
+for insert
+with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update their own resumes" on public.resumes;
+create policy "Users can update their own resumes"
+on public.resumes
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete their own resumes" on public.resumes;
+create policy "Users can delete their own resumes"
+on public.resumes
+for delete
+using (auth.uid() = user_id);

@@ -10,6 +10,7 @@ export const demoResume: ResumeProfile = normalizeResumeProfile({
     headline: "AI 产品经理 / Web 体验设计",
     email: "zhiwei@example.com",
     phone: "+86 138 0000 2026",
+    birth: "2002.03",
     location: "上海",
     website: "https://portfolio.example.com",
     linkedin: "https://linkedin.com/in/zhiwei",
@@ -89,6 +90,43 @@ export const demoResume: ResumeProfile = normalizeResumeProfile({
       year: "2025",
       description: "因主导 AI 求职工具 MVP 上线与增长试验获得团队季度表彰。",
     },
+  ],
+  education: [
+    {
+      id: "edu-demo-1",
+      school: "上海交通大学",
+      major: "计算机科学与技术",
+      degree: "本科",
+      period: "2020.09 - 2024.06",
+      gpa: "3.8/4.0",
+      courses: ["数据结构", "算法设计", "机器学习", "数据库系统"],
+    },
+  ],
+  campus: [
+    {
+      id: "cam-demo-1",
+      org: "学生科技创新协会",
+      role: "副会长",
+      period: "2022.09 - 2024.01",
+      highlights: [
+        "组织校内 Hackathon 活动，参与人数 200+，覆盖全校 8 个学院。",
+        "搭建协会内部知识库与项目管理系统，协作者文档查阅效率提升 40%。",
+      ],
+    },
+    {
+      id: "cam-demo-2",
+      org: "AI 爱好者社区",
+      role: "核心成员",
+      period: "2023.03 - 2024.06",
+      highlights: [
+        "主导「Prompt 工程分享周」系列活动，累计举办 6 场 workshop。",
+        "撰写 15+ 篇 AI 工具测评文章，社区阅读量总计 10w+。",
+      ],
+    },
+  ],
+  evaluation: [
+    "具备从 0 到 1 的 AI 产品落地经验，善于将技术能力转化为可感知的用户体验。",
+    "强烈的自我驱动与学习能力，能快速进入新领域并产出结构化方案。",
   ],
 });
 

@@ -6,6 +6,7 @@ export interface ResumeBasics {
   headline: string;
   email: string;
   phone: string;
+  birth: string;
   location: string;
   website: string;
   linkedin: string;
@@ -56,8 +57,29 @@ export interface ResumeProfile {
   projects: ProjectItem[];
   skills: SkillGroup[];
   awards: AwardItem[];
+  education: EducationItem[];
+  campus: CampusItem[];
+  evaluation: string[];
   created_at?: string;
   updated_at?: string;
+}
+
+export interface EducationItem {
+  id: string;
+  school: string;
+  major: string;
+  degree: string;
+  period: string;
+  gpa: string;
+  courses: string[];
+}
+
+export interface CampusItem {
+  id: string;
+  org: string;
+  role: string;
+  period: string;
+  highlights: string[];
 }
 
 export interface RecommendationItem {

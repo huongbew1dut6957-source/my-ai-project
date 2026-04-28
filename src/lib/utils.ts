@@ -1,6 +1,8 @@
 import { clsx, type ClassValue } from "clsx";
 import type {
   AwardItem,
+  CampusItem,
+  EducationItem,
   ExperienceItem,
   ProjectItem,
   ResumeBasics,
@@ -46,6 +48,7 @@ function normalizeBasics(input?: Partial<ResumeBasics>): ResumeBasics {
     headline: input?.headline ?? "",
     email: input?.email ?? "",
     phone: input?.phone ?? "",
+    birth: input?.birth ?? "",
     location: input?.location ?? "",
     website: input?.website ?? "",
     linkedin: input?.linkedin ?? "",
@@ -95,6 +98,28 @@ function normalizeAwards(input?: AwardItem[]): AwardItem[] {
   }));
 }
 
+function normalizeEducation(input?: EducationItem[]): EducationItem[] {
+  return (input ?? []).map((item) => ({
+    id: item.id ?? newId("edu"),
+    school: item.school ?? "",
+    major: item.major ?? "",
+    degree: item.degree ?? "",
+    period: item.period ?? "",
+    gpa: item.gpa ?? "",
+    courses: item.courses ?? [],
+  }));
+}
+
+function normalizeCampus(input?: CampusItem[]): CampusItem[] {
+  return (input ?? []).map((item) => ({
+    id: item.id ?? newId("cam"),
+    org: item.org ?? "",
+    role: item.role ?? "",
+    period: item.period ?? "",
+    highlights: item.highlights ?? [],
+  }));
+}
+
 export function createEmptyResume(theme: ThemeName = "aurora"): ResumeProfile {
   return {
     slug: "my-ai-resume",
@@ -130,6 +155,9 @@ export function createEmptyResume(theme: ThemeName = "aurora"): ResumeProfile {
       },
     ],
     awards: [],
+    education: [],
+    campus: [],
+    evaluation: [],
   };
 }
 
@@ -149,6 +177,9 @@ export function normalizeResumeProfile(
     projects: normalizeProjects(input?.projects),
     skills: normalizeSkills(input?.skills),
     awards: normalizeAwards(input?.awards),
+    education: normalizeEducation(input?.education),
+    campus: normalizeCampus(input?.campus),
+    evaluation: input?.evaluation ?? [],
   };
 }
 

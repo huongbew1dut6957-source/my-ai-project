@@ -42,6 +42,17 @@ export function buildRecommendations(
     ]),
     ...resume.skills.flatMap((group) => [group.category, group.items.join(" ")]),
     ...resume.awards.flatMap((award) => [award.title, award.description]),
+    ...resume.education.flatMap((edu) => [
+      edu.school,
+      edu.major,
+      edu.degree,
+      ...edu.courses,
+    ]),
+    ...resume.campus.flatMap((cam) => [
+      cam.org,
+      cam.role,
+      ...cam.highlights,
+    ]),
   ]
     .join(" ")
     .toLowerCase();
