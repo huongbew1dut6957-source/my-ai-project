@@ -6,7 +6,9 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import {
+  AlertTriangle,
   Briefcase,
+  Check,
   ExternalLink,
   FileDown,
   Link2,
@@ -16,6 +18,8 @@ import {
   Save,
   Sparkles,
   Trash2,
+  Upload,
+  X,
 } from "lucide-react";
 import { ResumePreview } from "@/components/public/resume-preview";
 import {
@@ -82,6 +86,19 @@ export function DashboardShell() {
   const [tailoringResult, setTailoringResult] = useState<TailorResponse | null>(null);
   const [tailoringLoading, setTailoringLoading] = useState(false);
   const [tailorError, setTailorError] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [parsedProfile, setParsedProfile] = useState<ResumeProfile | null>(null);
+  const [parseError, setParseError] = useState("");
+  const [parsePreviewOpen, setParsePreviewOpen] = useState(false);
+  const [parsedSections, setParsedSections] = useState<Record<string, boolean>>({
+    basic: true,
+    experiences: true,
+    projects: true,
+    education: true,
+    campus: true,
+    skills: true,
+    awards: true,
+  });
   const [isSaving, startSaveTransition] = useTransition();
   const deferredResume = useDeferredValue(resume);
   const supabaseClient = getSupabaseBrowserClient();
@@ -365,6 +382,105 @@ export function DashboardShell() {
     setStatus("已应用该项目的优化建议");
   };
 
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
+    setParseError("");
+    setParsedProfile(null);
+    setParsePreviewOpen(false);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/parse-resume", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const err = (await response.json()) as { message?: string };
+        throw new Error(err.message ?? "解析失败");
+      }
+
+      const data = (await response.json()) as { profile: ResumeProfile };
+      setParsedProfile(data.profile);
+      setParsePreviewOpen(true);
+      setStatus("简历解析完成，请预览并选择需要导入的内容。");
+    } catch (err) {
+      setParseError(err instanceof Error ? err.message : "未知错误");
+      setStatus("解析失败，请检查文件格式或重试。");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const applyParsedResume = () => {
+    if (!parsedProfile) return;
+
+    setResume((current) => {
+      const next = { ...current };
+
+      if (parsedSections.basic) {
+        next.basics = {
+          ...current.basics,
+          ...Object.fromEntries(
+            Object.entries(parsedProfile.basics).filter(
+              ([, v]) => v !== "",
+            ),
+          ),
+        };
+      }
+
+      if (parsedSections.experiences && parsedProfile.experiences.length > 0) {
+        next.experiences = parsedProfile.experiences.map((exp) => ({
+          ...exp,
+          id: exp.id || newId("exp"),
+        }));
+      }
+
+      if (parsedSections.projects && parsedProfile.projects.length > 0) {
+        next.projects = parsedProfile.projects.map((p) => ({
+          ...p,
+          id: p.id || newId("proj"),
+        }));
+      }
+
+      if (parsedSections.education && parsedProfile.education.length > 0) {
+        next.education = parsedProfile.education.map((e) => ({
+          ...e,
+          id: e.id || newId("edu"),
+        }));
+      }
+
+      if (parsedSections.campus && parsedProfile.campus.length > 0) {
+        next.campus = parsedProfile.campus.map((c) => ({
+          ...c,
+          id: c.id || newId("cam"),
+        }));
+      }
+
+      if (parsedSections.skills && parsedProfile.skills.length > 0) {
+        next.skills = parsedProfile.skills.map((s) => ({
+          ...s,
+          id: s.id || newId("skill"),
+        }));
+      }
+
+      if (parsedSections.awards && parsedProfile.awards.length > 0) {
+        next.awards = parsedProfile.awards.map((a) => ({
+          ...a,
+          id: a.id || newId("award"),
+        }));
+      }
+
+      return next;
+    });
+
+    setParsedProfile(null);
+    setParsePreviewOpen(false);
+    setStatus("已导入解析内容，请检查并保存。");
+  };
+
   const exportPdf = async () => {
     const target = document.getElementById("resume-export-source");
 
@@ -484,6 +600,29 @@ export function DashboardShell() {
                 <Save size={16} />
                 {isSaving ? "保存中..." : "保存"}
               </Button>
+              <Button
+                variant="secondary"
+                onClick={() => document.getElementById("resume-file-upload")?.click()}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <LoaderCircle className="animate-spin" size={16} />
+                ) : (
+                  <Upload size={16} />
+                )}
+                {isUploading ? "解析中..." : "导入简历"}
+              </Button>
+              <input
+                type="file"
+                id="resume-file-upload"
+                accept=".pdf,.docx"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileUpload(file);
+                  e.target.value = "";
+                }}
+              />
               <Button variant="ghost" onClick={signOut}>
                 <LogOut size={16} />
                 退出
@@ -509,6 +648,182 @@ export function DashboardShell() {
           </a>
         </div>
       </div>
+
+      {parseError ? (
+        <div className="mb-6 glass-card border-rose-200 bg-rose-50/50 p-4">
+          <div className="flex items-center gap-2 text-sm text-rose-700">
+            <AlertTriangle size={16} />
+            <span>{parseError}</span>
+            <button
+              type="button"
+              className="ml-auto text-rose-500 hover:text-rose-700"
+              onClick={() => setParseError("")}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {parsePreviewOpen && parsedProfile ? (
+        <div className="mb-6 glass-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="section-kicker">解析结果预览</p>
+              <h2 className="text-xl font-semibold text-slate-950">从文件中识别的简历内容</h2>
+              <p className="mt-1 text-sm text-slate-500">勾选需要导入的板块，点击"应用"合并到当前简历。</p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setParsePreviewOpen(false);
+                  setParsedProfile(null);
+                }}
+              >
+                <X size={16} />
+                取消
+              </Button>
+              <Button onClick={applyParsedResume}>
+                <Check size={16} />
+                应用选中内容
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-4 mb-5">
+            {([
+              { key: "basic", label: "基本信息" },
+              { key: "experiences", label: "工作经历" },
+              { key: "projects", label: "项目作品" },
+              { key: "education", label: "教育经历" },
+              { key: "campus", label: "校园经历" },
+              { key: "skills", label: "技能" },
+              { key: "awards", label: "获奖" },
+            ] as const).map(({ key, label }) => (
+              <label
+                key={key}
+                className="flex items-center gap-2 rounded-xl border border-black/10 bg-white p-3 cursor-pointer hover:bg-slate-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={parsedSections[key] ?? false}
+                  onChange={(e) =>
+                    setParsedSections((prev) => ({ ...prev, [key]: e.target.checked }))
+                  }
+                />
+                <span className="text-sm font-medium text-slate-700">{label}</span>
+              </label>
+            ))}
+          </div>
+
+          {parsedProfile.basics.fullName ? (
+            <div className="mb-3 p-4 rounded-2xl bg-slate-50 border border-black/5">
+              <p className="text-sm font-semibold text-slate-800 mb-2">基本信息</p>
+              <div className="grid gap-2 sm:grid-cols-3 text-sm text-slate-600">
+                {parsedProfile.basics.fullName && <span>姓名: {parsedProfile.basics.fullName}</span>}
+                {parsedProfile.basics.email && <span>邮箱: {parsedProfile.basics.email}</span>}
+                {parsedProfile.basics.phone && <span>电话: {parsedProfile.basics.phone}</span>}
+                {parsedProfile.basics.headline && (
+                  <span>求职方向: {parsedProfile.basics.headline}</span>
+                )}
+                {parsedProfile.basics.location && (
+                  <span>地点: {parsedProfile.basics.location}</span>
+                )}
+                {parsedProfile.basics.birth && (
+                  <span>出生日期: {parsedProfile.basics.birth}</span>
+                )}
+              </div>
+              {parsedProfile.basics.summary ? (
+                <p className="mt-2 text-sm text-slate-500">
+                  简介: {parsedProfile.basics.summary.slice(0, 120)}...
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {parsedProfile.experiences.length > 0 ? (
+            <div className="mb-3 p-4 rounded-2xl bg-slate-50 border border-black/5">
+              <p className="text-sm font-semibold text-slate-800 mb-2">
+                工作经历 ({parsedProfile.experiences.length} 条)
+              </p>
+              {parsedProfile.experiences.map((exp, i) => (
+                <div key={i} className="mb-1.5 last:mb-0 text-sm text-slate-600">
+                  <span className="font-medium">{exp.company}</span> — {exp.role} ({exp.period})
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {parsedProfile.projects.length > 0 ? (
+            <div className="mb-3 p-4 rounded-2xl bg-slate-50 border border-black/5">
+              <p className="text-sm font-semibold text-slate-800 mb-2">
+                项目作品 ({parsedProfile.projects.length} 条)
+              </p>
+              {parsedProfile.projects.map((p, i) => (
+                <div key={i} className="mb-1.5 last:mb-0 text-sm text-slate-600">
+                  <span className="font-medium">{p.title}</span>
+                  {p.year ? ` (${p.year})` : ""}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {parsedProfile.education.length > 0 ? (
+            <div className="mb-3 p-4 rounded-2xl bg-slate-50 border border-black/5">
+              <p className="text-sm font-semibold text-slate-800 mb-2">
+                教育经历 ({parsedProfile.education.length} 条)
+              </p>
+              {parsedProfile.education.map((edu, i) => (
+                <div key={i} className="mb-1.5 last:mb-0 text-sm text-slate-600">
+                  <span className="font-medium">{edu.school}</span> — {edu.major} · {edu.degree} ({edu.period})
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {parsedProfile.campus.length > 0 ? (
+            <div className="mb-3 p-4 rounded-2xl bg-slate-50 border border-black/5">
+              <p className="text-sm font-semibold text-slate-800 mb-2">
+                校园经历 ({parsedProfile.campus.length} 条)
+              </p>
+              {parsedProfile.campus.map((cam, i) => (
+                <div key={i} className="mb-1.5 last:mb-0 text-sm text-slate-600">
+                  <span className="font-medium">{cam.org}</span> — {cam.role} ({cam.period})
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {parsedProfile.skills.length > 0 ? (
+            <div className="mb-3 p-4 rounded-2xl bg-slate-50 border border-black/5">
+              <p className="text-sm font-semibold text-slate-800 mb-2">
+                技能 ({parsedProfile.skills.reduce((acc, g) => acc + g.items.length, 0)} 个)
+              </p>
+              {parsedProfile.skills.map((group, i) => (
+                <div key={i} className="mb-1.5 last:mb-0 text-sm text-slate-600">
+                  <span className="font-medium">{group.category}:</span> {group.items.join("、")}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {parsedProfile.awards.length > 0 ? (
+            <div className="mb-3 p-4 rounded-2xl bg-slate-50 border border-black/5">
+              <p className="text-sm font-semibold text-slate-800 mb-2">
+                获奖 ({parsedProfile.awards.length} 条)
+              </p>
+              {parsedProfile.awards.map((award, i) => (
+                <div key={i} className="mb-1.5 last:mb-0 text-sm text-slate-600">
+                  <span className="font-medium">{award.title}</span>
+                  {award.issuer ? ` — ${award.issuer}` : ""}
+                  {award.year ? ` (${award.year})` : ""}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mb-6">
         <ResumePreview resume={resume} publicUrl={publicUrl} />
