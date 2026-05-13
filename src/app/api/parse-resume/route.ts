@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { normalizeResumeProfile } from "@/lib/utils";
 import type { ResumeProfile } from "@/lib/types";
-import { PDFParse } from "pdf-parse";
+import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
 import mammoth from "mammoth";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -25,9 +25,24 @@ function detectFileType(file: File): "pdf" | "docx" | null {
 }
 
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  const pdfParse = new PDFParse({ data: buffer });
-  const result = await pdfParse.getText();
-  const text = result.text?.trim() ?? "";
+  GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+    import.meta.url,
+  ).toString();
+
+  const doc = await getDocument({ data: new Uint8Array(buffer) }).promise;
+  const pages: string[] = [];
+
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ");
+    pages.push(pageText);
+  }
+
+  const text = pages.join("\n\n").trim();
   if (!text) {
     throw new Error("PDF 文件无法读取文字，可能为扫描件或图片型 PDF。");
   }
