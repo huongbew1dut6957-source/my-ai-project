@@ -21,31 +21,31 @@ function detectFileType(file: File): "pdf" | "docx" | null {
 }
 
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const PDFParserCtor = await import("pdf2json");
 
-  const doc = await getDocument({
-    data: new Uint8Array(buffer),
-    useWorkerFetch: false,
-    disableAutoFetch: true,
-    disableStream: true,
-  }).promise;
-
-  const pages: string[] = [];
-
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = content.items
-      .map((item) => ("str" in item ? item.str : ""))
-      .join(" ");
-    pages.push(pageText);
-  }
-
-  const text = pages.join("\n\n").trim();
-  if (!text) {
-    throw new Error("PDF 文件无法读取文字，可能为扫描件或图片型 PDF。");
-  }
-  return text;
+  return new Promise((resolve, reject) => {
+    const parser = new PDFParserCtor.default();
+    parser.on("pdfParser_dataReady", (data: { Pages: Array<{ Texts: Array<{ R: Array<{ T: string }> }> }> }) => {
+      const texts: string[] = [];
+      for (const page of data.Pages) {
+        for (const text of page.Texts) {
+          for (const run of text.R) {
+            texts.push(run.T);
+          }
+        }
+      }
+      const result = texts.join(" ");
+      if (!result.trim()) {
+        reject(new Error("PDF 文件无法读取文字，可能为扫描件或图片型 PDF。"));
+      } else {
+        resolve(result);
+      }
+    });
+    parser.on("pdfParser_dataError", (err: unknown) => {
+      reject(err instanceof Error ? err : new Error("PDF 解析失败。"));
+    });
+    parser.parseBuffer(buffer);
+  });
 }
 
 async function extractTextFromDOCX(buffer: Buffer): Promise<string> {
