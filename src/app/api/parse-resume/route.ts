@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { normalizeResumeProfile } from "@/lib/utils";
 import type { ResumeProfile } from "@/lib/types";
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
-import mammoth from "mammoth";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -10,8 +8,6 @@ const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
-
-const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx"]);
 
 function detectFileType(file: File): "pdf" | "docx" | null {
   if (ALLOWED_MIME_TYPES.has(file.type)) {
@@ -25,12 +21,15 @@ function detectFileType(file: File): "pdf" | "docx" | null {
 }
 
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
-    import.meta.url,
-  ).toString();
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
-  const doc = await getDocument({ data: new Uint8Array(buffer) }).promise;
+  const doc = await getDocument({
+    data: new Uint8Array(buffer),
+    useWorkerFetch: false,
+    disableAutoFetch: true,
+    disableStream: true,
+  }).promise;
+
   const pages: string[] = [];
 
   for (let i = 1; i <= doc.numPages; i++) {
@@ -50,6 +49,7 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
 }
 
 async function extractTextFromDOCX(buffer: Buffer): Promise<string> {
+  const mammoth = await import("mammoth");
   const result = await mammoth.extractRawText({ buffer });
   const text = result.value?.trim() ?? "";
   if (!text) {
@@ -95,7 +95,7 @@ async function parseWithClaude(rawText: string): Promise<Partial<ResumeProfile> 
   });
 
   if (!response.ok) {
-    console.error("Claude API error:", response.status, await response.text().catch(() => ""));
+    console.error("Claude API error:", response.status);
     return null;
   }
 
@@ -177,7 +177,8 @@ export async function POST(request: Request) {
     const profile = normalizeResumeProfile(parsed);
 
     return NextResponse.json({ profile });
-  } catch {
+  } catch (error) {
+    console.error("Parse resume error:", error);
     return NextResponse.json(
       { message: "处理请求时出错，请稍后重试。" },
       { status: 500 },
