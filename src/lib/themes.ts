@@ -14,8 +14,8 @@ export const themeMap: Record<
   }
 > = {
   aurora: {
-    label: "Aurora Editorial",
-    eyebrow: "适合产品 / 设计 / AI 岗",
+    label: "极光橙",
+    eyebrow: "产品 / 设计 / AI",
     preview: "from-rose-200 via-white to-sky-200",
     style: {
       "--resume-bg": "#fffdf7",
@@ -31,8 +31,8 @@ export const themeMap: Record<
     } as CSSProperties,
   },
   graphite: {
-    label: "Graphite Grid",
-    eyebrow: "适合开发 / 数据 / 咨询岗",
+    label: "石墨灰",
+    eyebrow: "开发 / 数据 / 咨询",
     preview: "from-slate-300 via-slate-100 to-white",
     style: {
       "--resume-bg": "#f5f7fb",
@@ -48,8 +48,8 @@ export const themeMap: Record<
     } as CSSProperties,
   },
   ember: {
-    label: "Ember Stage",
-    eyebrow: "适合运营 / 市场 / 增长岗",
+    label: "余烬红",
+    eyebrow: "运营 / 市场 / 增长",
     preview: "from-amber-200 via-orange-50 to-white",
     style: {
       "--resume-bg": "#fffaf2",
@@ -65,8 +65,8 @@ export const themeMap: Record<
     } as CSSProperties,
   },
   ocean: {
-    label: "Ocean Canvas",
-    eyebrow: "适合出海 / 品牌 / 视觉岗",
+    label: "深海蓝",
+    eyebrow: "出海 / 品牌 / 视觉",
     preview: "from-cyan-200 via-sky-50 to-white",
     style: {
       "--resume-bg": "#f4fcff",

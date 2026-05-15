@@ -1,4 +1,5 @@
 import type { ResumeProfile } from "@/lib/types";
+import { themeMap } from "@/lib/themes";
 
 export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
   const contactItems = [
@@ -10,6 +11,10 @@ export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
     resume.basics.linkedin,
   ].filter(Boolean) as string[];
 
+  const theme = themeMap[resume.theme];
+  const accent = (theme.style as Record<string, string>)["--resume-accent"] || "#111111";
+  const accentSoft = (theme.style as Record<string, string>)["--resume-accent-soft"] || "#f5f5f5";
+
   return (
     <div
       className="w-[794px] px-[44px] py-[36px]"
@@ -20,7 +25,7 @@ export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
           '"Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", serif',
       }}
     >
-      <header className="pb-4" style={{ borderBottom: "1px solid #111111" }}>
+      <header className="pb-4" style={{ borderBottom: `2px solid ${accent}` }}>
         <div className="flex items-end justify-between gap-6">
           <div className="min-w-0 flex-1">
             <h1 className="text-[28px] font-bold tracking-[0.08em]">
@@ -45,7 +50,7 @@ export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
 
       <div className="mt-4 grid grid-cols-[208px_minmax(0,1fr)] gap-6">
         <aside className="space-y-4">
-          <PdfSection title="技能标签">
+          <PdfSection accent={accent} title="技能标签">
             <div className="flex flex-wrap gap-1.5">
               {resume.skills.flatMap((group) => group.items).length > 0 ? (
                 resume.skills.flatMap((group) => group.items).map((item) => (
@@ -65,7 +70,7 @@ export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
             </div>
           </PdfSection>
 
-          <PdfSection title="链接信息">
+          <PdfSection accent={accent} title="链接信息">
             <div className="space-y-1.5 text-[11px] leading-5">
               {resume.basics.website ? <p>{resume.basics.website}</p> : null}
               {resume.basics.github ? <p>{resume.basics.github}</p> : null}
@@ -78,7 +83,7 @@ export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
             </div>
           </PdfSection>
 
-          <PdfSection title="获奖 / 证书">
+          <PdfSection accent={accent} title="获奖 / 证书">
             <div className="space-y-3">
               {resume.awards.length > 0 ? (
                 resume.awards.map((award) => (
@@ -105,10 +110,10 @@ export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
         </aside>
 
         <main className="space-y-4">
-          <PdfSection title="实习 / 工作经历">
+          <PdfSection accent={accent} title="实习 / 工作经历">
             <div className="space-y-3">
               {resume.experiences.map((experience) => (
-                <EntryBlock
+                <EntryBlock accent={accent}
                   key={experience.id}
                   title={experience.company || "公司名称"}
                   subtitle={experience.role || "岗位名称"}
@@ -119,7 +124,7 @@ export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
             </div>
           </PdfSection>
 
-          <PdfSection title="教育经历">
+          <PdfSection accent={accent} title="教育经历">
             <div className="space-y-3">
               {resume.education.length > 0 ? (
                 resume.education.map((item) => (
@@ -145,11 +150,11 @@ export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
             </div>
           </PdfSection>
 
-          <PdfSection title="校园经历">
+          <PdfSection accent={accent} title="校园经历">
             <div className="space-y-3">
               {resume.campus.length > 0 ? (
                 resume.campus.map((item) => (
-                  <EntryBlock
+                  <EntryBlock accent={accent}
                     key={item.id}
                     title={item.org}
                     subtitle={item.role}
@@ -163,10 +168,10 @@ export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
             </div>
           </PdfSection>
 
-          <PdfSection title="项目经历">
+          <PdfSection accent={accent} title="项目经历">
             <div className="space-y-3">
               {resume.projects.map((project) => (
-                <EntryBlock
+                <EntryBlock accent={accent}
                   key={project.id}
                   title={project.title || "项目名称"}
                   subtitle={project.year || "项目时间"}
@@ -185,14 +190,16 @@ export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
 
 function PdfSection({
   title,
+  accent,
   children,
 }: {
   title: string;
+  accent: string;
   children: React.ReactNode;
 }) {
   return (
     <section>
-      <div className="mb-2 pb-1" style={{ borderBottom: "1px solid #111111" }}>
+      <div className="mb-2 pb-1" style={{ borderBottom: `1.5px solid ${accent}` }}>
         <h2 className="text-[16px] font-bold">{title}</h2>
       </div>
       {children}
@@ -206,12 +213,14 @@ function EntryBlock({
   meta,
   bullets,
   extra,
+  accent,
 }: {
   title: string;
   subtitle: string;
   meta?: string;
   bullets: string[];
   extra?: string;
+  accent: string;
 }) {
   return (
     <article>
@@ -219,7 +228,7 @@ function EntryBlock({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h3 className="text-[13px] font-bold">{title}</h3>
-            <span className="font-semibold">{subtitle}</span>
+            <span className="font-semibold" style={{ color: accent }}>{subtitle}</span>
           </div>
           {meta ? (
             <p className="mt-1 leading-5" style={{ color: "#404040" }}>
@@ -232,13 +241,13 @@ function EntryBlock({
         {bullets.length > 0 ? (
           bullets.map((item) => (
             <li key={item} className="flex gap-2">
-              <span className="shrink-0">●</span>
+              <span className="shrink-0" style={{ color: accent }}>●</span>
               <span>{item}</span>
             </li>
           ))
         ) : (
           <li className="flex gap-2" style={{ color: "#404040" }}>
-            <span className="shrink-0">●</span>
+            <span className="shrink-0" style={{ color: accent }}>●</span>
             <span>补充结果、职责和具体影响，会让 PDF 更完整。</span>
           </li>
         )}
