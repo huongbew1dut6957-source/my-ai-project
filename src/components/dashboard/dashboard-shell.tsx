@@ -112,6 +112,13 @@ export function DashboardShell() {
   const deferredResume = useDeferredValue(resume);
   const supabaseClient = getSupabaseBrowserClient();
   const isDemoMode = !supabaseClient;
+  const [showGuide, setShowGuide] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem("onboarding-dismissed")) {
+      setShowGuide(true);
+    }
+  }, []);
 
   const loadSessionState = useEffectEvent(async (incoming: Session | null) => {
     if (!supabaseClient) {
@@ -881,6 +888,40 @@ export function DashboardShell() {
               ))}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {showGuide ? (
+        <div className="mb-6 glass-card p-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-900 mb-2">三步搞定你的简历</p>
+              <div className="grid gap-2 sm:grid-cols-3 text-xs text-slate-600">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-600">1</span>
+                  导入简历文档或从零编辑
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-600">2</span>
+                  AI 帮你优化内容 + 检查健康度
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-600">3</span>
+                  选模板风格 → 一键导出 PDF
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="shrink-0 text-xs text-slate-400 hover:text-slate-600 ml-4"
+              onClick={() => {
+                setShowGuide(false);
+                localStorage.setItem("onboarding-dismissed", "1");
+              }}
+            >
+              知道了
+            </button>
+          </div>
         </div>
       ) : null}
 
