@@ -2,19 +2,16 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { ArrowRight, Lock, LogIn, Mail, Smartphone, UserPlus } from "lucide-react";
+import { ArrowRight, Lock, LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
-type AuthMode = "phone" | "email-signin" | "email-signup";
+type AuthMode = "email-signin" | "email-signup";
 
 export function AuthShell() {
-  const [mode, setMode] = useState<AuthMode>("phone");
+  const [mode, setMode] = useState<AuthMode>("email-signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -25,66 +22,7 @@ export function AuthShell() {
     return client;
   };
 
-  const handleSendCode = () => {
-    setError(null);
-    const client = getClient();
-    if (!client) return;
-
-    const clean = phone.replace(/\s+/g, "");
-    if (!clean || clean.length < 11) {
-      setError("请输入正确的手机号码。");
-      return;
-    }
-
-    startTransition(() => {
-      void (async () => {
-        const { error: sendError } = await client.auth.signInWithOtp({
-          phone: clean.startsWith("+") ? clean : `+86${clean}`,
-        });
-        if (sendError) {
-          setError(sendError.message);
-        } else {
-          setCodeSent(true);
-          setFeedback("验证码已发送，请查收短信。");
-        }
-      })();
-    });
-  };
-
-  const handleVerifyCode = () => {
-    setError(null);
-    setFeedback(null);
-    const client = getClient();
-    if (!client) return;
-
-    const clean = phone.replace(/\s+/g, "");
-    const trimmedCode = code.trim();
-    if (!trimmedCode) {
-      setError("请输入验证码。");
-      return;
-    }
-    if (!clean || clean.length < 11) {
-      setError("手机号格式不正确。");
-      return;
-    }
-
-    startTransition(() => {
-      void (async () => {
-        const { error: verifyError } = await client.auth.verifyOtp({
-          phone: clean.startsWith("+") ? clean : `+86${clean}`,
-          token: trimmedCode,
-          type: "sms",
-        });
-        if (verifyError) {
-          setError(verifyError.message);
-          return;
-        }
-        window.location.href = "/dashboard";
-      })();
-    });
-  };
-
-  const handleEmailAuth = () => {
+  const handleSubmit = () => {
     setError(null);
     setFeedback(null);
     const client = getClient();
@@ -150,14 +88,13 @@ export function AuthShell() {
             {/* Mode tabs */}
             <div className="mb-6 flex gap-2 rounded-full bg-black/5 p-1">
               {([
-                { id: "phone" as const, label: "手机登录", icon: Smartphone },
-                { id: "email-signin" as const, label: "邮箱登录", icon: Mail },
+                { id: "email-signin" as const, label: "登录", icon: LogIn },
                 { id: "email-signup" as const, label: "注册", icon: UserPlus },
               ]).map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   type="button"
-                  onClick={() => { setMode(id); setError(null); setFeedback(null); setCodeSent(false); }}
+                  onClick={() => { setMode(id); setError(null); setFeedback(null); }}
                   className={`flex-1 rounded-full px-4 py-3 text-sm font-semibold ${
                     mode === id ? "bg-slate-950 text-white" : "text-slate-600"
                   }`}
@@ -170,81 +107,35 @@ export function AuthShell() {
               ))}
             </div>
 
-            {/* Phone auth */}
-            {mode === "phone" ? (
-              <div className="space-y-4">
-                <div>
-                  <label className="editor-label">手机号</label>
-                  <div className="flex gap-2">
-                    <input
-                      className="editor-input flex-1"
-                      type="tel"
-                      placeholder="输入手机号"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                    />
-                    <Button
-                      variant="secondary"
-                      onClick={handleSendCode}
-                      disabled={isPending || codeSent}
-                      className="shrink-0"
-                    >
-                      {codeSent ? "已发送" : "获取验证码"}
-                    </Button>
-                  </div>
-                </div>
-                <div>
-                  <label className="editor-label">验证码</label>
-                  <input
-                    className="editor-input"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    placeholder="输入 6 位验证码"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                  />
-                </div>
-
-                {feedback ? <p className="text-sm text-emerald-600">{feedback}</p> : null}
-                {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-
-                <Button className="w-full" onClick={handleVerifyCode} disabled={isPending || !codeSent}>
-                  {isPending ? "验证中..." : "登录"}
-                </Button>
+            <div className="space-y-4">
+              <div>
+                <label className="editor-label">邮箱</label>
+                <input
+                  className="editor-input"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
-            ) : (
-              /* Email auth */
-              <div className="space-y-4">
-                <div>
-                  <label className="editor-label">邮箱</label>
-                  <input
-                    className="editor-input"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="editor-label">密码</label>
-                  <input
-                    className="editor-input"
-                    type="password"
-                    placeholder="至少 6 位"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-
-                {feedback ? <p className="text-sm text-emerald-600">{feedback}</p> : null}
-                {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-
-                <Button className="w-full" onClick={handleEmailAuth} disabled={isPending}>
-                  {isPending ? "提交中..." : mode === "email-signin" ? "登录" : "注册账号"}
-                </Button>
+              <div>
+                <label className="editor-label">密码</label>
+                <input
+                  className="editor-input"
+                  type="password"
+                  placeholder="至少 6 位"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
-            )}
+
+              {feedback ? <p className="text-sm text-emerald-600">{feedback}</p> : null}
+              {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+
+              <Button className="w-full" onClick={handleSubmit} disabled={isPending}>
+                {isPending ? "提交中..." : mode === "email-signin" ? "登录并进入控制台" : "注册账号"}
+              </Button>
+            </div>
           </>
         )}
       </section>
