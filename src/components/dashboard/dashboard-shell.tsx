@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   Briefcase,
   Check,
-  ExternalLink,
   FileDown,
   Link2,
   LoaderCircle,
@@ -25,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { demoResume } from "@/lib/data/demo-resume";
 import {
   buildResumeSyncPayload,
-  getMarkdownEditorUrl,
   LATEST_RESUME_MARKDOWN_KEY,
 } from "@/lib/resume-sync";
 import { themeEntries } from "@/lib/themes";
@@ -223,12 +221,6 @@ export function DashboardShell() {
     }
   }, [authReady, isDemoMode, resume]);
 
-  const syncMarkdownToLocal = (profile: ResumeProfile) => {
-    const { markdown } = buildResumeSyncPayload(profile);
-    window.localStorage.setItem(LATEST_RESUME_MARKDOWN_KEY, markdown);
-    return markdown;
-  };
-
   useEffect(() => {
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
@@ -328,13 +320,6 @@ export function DashboardShell() {
         );
       })();
     });
-  };
-
-  const openMarkdownEditor = () => {
-    const markdown = syncMarkdownToLocal(resume);
-    const editorUrl = getMarkdownEditorUrl(markdown);
-    window.open(editorUrl, "_blank", "noopener,noreferrer");
-    setStatus("已生成最新版 Markdown，并打开 oh-my-cv 编辑器");
   };
 
   const handleTailor = async () => {
@@ -654,10 +639,6 @@ export function DashboardShell() {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" onClick={openMarkdownEditor}>
-                <ExternalLink size={16} />
-                打开 Markdown 编辑器
-              </Button>
               <Button variant="secondary" onClick={exportPdf}>
                 <FileDown size={16} />
                 导出 PDF
