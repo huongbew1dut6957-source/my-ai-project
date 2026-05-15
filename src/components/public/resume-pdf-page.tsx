@@ -3,260 +3,195 @@ import { themeMap } from "@/lib/themes";
 
 export function ResumePdfPage({ resume }: { resume: ResumeProfile }) {
   const contactItems = [
+    resume.basics.birth,
     resume.basics.phone,
     resume.basics.email,
     resume.basics.location,
-    resume.basics.website,
-    resume.basics.github,
-    resume.basics.linkedin,
-  ].filter(Boolean) as string[];
+  ].filter(Boolean);
 
   const theme = themeMap[resume.theme];
-  const accent = (theme.style as Record<string, string>)["--resume-accent"] || "#111111";
-  const accentSoft = (theme.style as Record<string, string>)["--resume-accent-soft"] || "#f5f5f5";
+  const accent = (theme.style as Record<string, string>)["--resume-accent"] || "#333";
 
   return (
     <div
-      className="w-[794px] px-[44px] py-[36px]"
+      className="w-[794px] px-[48px] py-[40px]"
       style={{
         backgroundColor: "#ffffff",
-        color: "#111111",
+        color: "#222",
         fontFamily:
-          '"Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", serif',
+          '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif',
       }}
     >
-      <header className="pb-4" style={{ borderBottom: `2px solid ${accent}` }}>
-        <div className="flex items-end justify-between gap-6">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-[28px] font-bold tracking-[0.08em]">
-              {resume.basics.fullName || "你的名字"}
-            </h1>
-            <p className="mt-2 text-[14px] font-semibold">
-              {resume.basics.headline || "求职方向 / 专业标签"}
-            </p>
+      {/* Header + Contact row */}
+      <div style={{ borderBottom: `2.5px solid ${accent}`, paddingBottom: 14, marginBottom: 16 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "0.06em", margin: 0 }}>
+          {resume.basics.fullName || "姓名"}
+        </h1>
+        {resume.basics.headline ? (
+          <div style={{ fontSize: 13, color: accent, fontWeight: 600, marginTop: 4 }}>
+            {resume.basics.headline}
           </div>
-          <div className="shrink-0 text-right text-[12px] leading-6">
-            {contactItems.slice(0, 4).map((item) => (
-              <div key={item}>{item}</div>
+        ) : null}
+        {contactItems.length > 0 ? (
+          <div style={{ fontSize: 11, color: "#555", marginTop: 6, display: "flex", flexWrap: "wrap", gap: "4px 18px" }}>
+            {contactItems.map((item) => (
+              <span key={item}>{item}</span>
             ))}
           </div>
-        </div>
-        {resume.basics.summary ? (
-          <p className="mt-3 text-[12px] leading-6" style={{ color: "#262626" }}>
-            {resume.basics.summary}
-          </p>
         ) : null}
-      </header>
+      </div>
 
-      <div className="mt-4 grid grid-cols-[208px_minmax(0,1fr)] gap-6">
-        <aside className="space-y-4">
-          <PdfSection accent={accent} title="技能标签">
-            <div className="flex flex-wrap gap-1.5">
-              {resume.skills.flatMap((group) => group.items).length > 0 ? (
-                resume.skills.flatMap((group) => group.items).map((item) => (
-                  <span
-                    key={item}
-                    className="rounded px-2 py-0.5 text-[10px]"
-                    style={{ border: "1px solid #a3a3a3" }}
-                  >
-                    {item}
-                  </span>
-                ))
-              ) : (
-                <p className="text-[11px] leading-5" style={{ color: "#404040" }}>
-                  暂未填写技能关键词
-                </p>
-              )}
-            </div>
-          </PdfSection>
-
-          <PdfSection accent={accent} title="链接信息">
-            <div className="space-y-1.5 text-[11px] leading-5">
-              {resume.basics.website ? <p>{resume.basics.website}</p> : null}
-              {resume.basics.github ? <p>{resume.basics.github}</p> : null}
-              {resume.basics.linkedin ? <p>{resume.basics.linkedin}</p> : null}
-              {!resume.basics.website &&
-              !resume.basics.github &&
-              !resume.basics.linkedin ? (
-                <p style={{ color: "#404040" }}>暂未填写外部链接</p>
+      {/* Education */}
+      {resume.education.length > 0 ? (
+        <PdfSection accent={accent} title="教育经历">
+          {resume.education.map((item) => (
+            <div key={item.id} style={{ marginBottom: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>{item.school}</span>
+                <span style={{ fontSize: 11, color: "#666" }}>{item.period}</span>
+              </div>
+              <div style={{ fontSize: 12, color: "#444", marginTop: 1 }}>
+                {item.major} · {item.degree}
+                {item.gpa ? <span> · GPA {item.gpa}</span> : null}
+              </div>
+              {item.courses.length > 0 ? (
+                <div style={{ fontSize: 10, color: "#777", marginTop: 1 }}>
+                  主修课程：{item.courses.join("、")}
+                </div>
               ) : null}
             </div>
-          </PdfSection>
+          ))}
+        </PdfSection>
+      ) : null}
 
-          <PdfSection accent={accent} title="获奖 / 证书">
-            <div className="space-y-3">
-              {resume.awards.length > 0 ? (
-                resume.awards.map((award) => (
-                  <div key={award.id}>
-                    <div className="flex items-center justify-between gap-2 text-[11px] font-semibold">
-                      <span className="min-w-0 flex-1">{award.title}</span>
-                      <span className="shrink-0">{award.year}</span>
-                    </div>
-                    <p className="mt-1 text-[11px] leading-5" style={{ color: "#404040" }}>
-                      {award.issuer}
-                    </p>
-                    {award.description ? (
-                      <p className="mt-1 text-[11px] leading-5">{award.description}</p>
-                    ) : null}
-                  </div>
-                ))
-              ) : (
-                <p className="text-[11px] leading-5" style={{ color: "#404040" }}>
-                  暂未填写奖项或证书
-                </p>
-              )}
-            </div>
-          </PdfSection>
-        </aside>
+      {/* Internship / Work */}
+      {resume.experiences.length > 0 ? (
+        <PdfSection accent={accent} title="实习经历">
+          {resume.experiences.map((item) => (
+            <EntryItem key={item.id} accent={accent}>
+              <EntryTitle title={item.company} subtitle={item.role} meta={item.period} accent={accent} />
+              {item.highlights.length > 0 ? (
+                <BulletList items={item.highlights} accent={accent} />
+              ) : null}
+            </EntryItem>
+          ))}
+        </PdfSection>
+      ) : null}
 
-        <main className="space-y-4">
-          <PdfSection accent={accent} title="实习 / 工作经历">
-            <div className="space-y-3">
-              {resume.experiences.map((experience) => (
-                <EntryBlock accent={accent}
-                  key={experience.id}
-                  title={experience.company || "公司名称"}
-                  subtitle={experience.role || "岗位名称"}
-                  meta={[experience.period, experience.location].filter(Boolean).join(" / ")}
-                  bullets={experience.highlights}
-                />
+      {/* Projects */}
+      {resume.projects.length > 0 ? (
+        <PdfSection accent={accent} title="项目经历">
+          {resume.projects.map((item) => (
+            <EntryItem key={item.id} accent={accent}>
+              <EntryTitle title={item.title} subtitle={item.year} meta={item.tags?.join(" · ")} accent={accent} />
+              {item.description ? (
+                <BulletList items={[item.description, item.impact].filter(Boolean)} accent={accent} />
+              ) : null}
+            </EntryItem>
+          ))}
+        </PdfSection>
+      ) : null}
+
+      {/* Campus */}
+      {resume.campus.length > 0 ? (
+        <PdfSection accent={accent} title="校园经历">
+          {resume.campus.map((item) => (
+            <EntryItem key={item.id} accent={accent}>
+              <EntryTitle title={item.org} subtitle={item.role} meta={item.period} accent={accent} />
+              {item.highlights.length > 0 ? (
+                <BulletList items={item.highlights} accent={accent} />
+              ) : null}
+            </EntryItem>
+          ))}
+        </PdfSection>
+      ) : null}
+
+      {/* Skills + Awards row */}
+      <div style={{ display: "flex", gap: 32 }}>
+        {resume.skills.length > 0 ? (
+          <div style={{ flex: 1 }}>
+            <PdfSection accent={accent} title="专业技能">
+              {resume.skills.map((group) => (
+                <div key={group.id} style={{ marginBottom: 3, fontSize: 11 }}>
+                  <span style={{ fontWeight: 600 }}>{group.category}：</span>
+                  <span style={{ color: "#555" }}>{group.items.join("、")}</span>
+                </div>
               ))}
-            </div>
-          </PdfSection>
+            </PdfSection>
+          </div>
+        ) : null}
 
-          <PdfSection accent={accent} title="教育经历">
-            <div className="space-y-3">
-              {resume.education.length > 0 ? (
-                resume.education.map((item) => (
-                  <div key={item.id}>
-                    <div className="flex items-start justify-between gap-3 text-[12px]">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-[13px] font-bold">{item.school}</h3>
-                        <span className="font-semibold">{item.major} · {item.degree}</span>
-                      </div>
-                      <span className="shrink-0" style={{ color: "#404040" }}>{item.period}</span>
-                    </div>
-                    {item.gpa ? (
-                      <p className="mt-1 text-[11px]" style={{ color: "#404040" }}>GPA：{item.gpa}</p>
-                    ) : null}
-                    {item.courses.length > 0 ? (
-                      <p className="mt-1 text-[11px]" style={{ color: "#404040" }}>主修课程：{item.courses.join("、")}</p>
-                    ) : null}
-                  </div>
-                ))
-              ) : (
-                <p className="text-[11px]" style={{ color: "#404040" }}>暂未填写教育经历</p>
-              )}
-            </div>
-          </PdfSection>
-
-          <PdfSection accent={accent} title="校园经历">
-            <div className="space-y-3">
-              {resume.campus.length > 0 ? (
-                resume.campus.map((item) => (
-                  <EntryBlock accent={accent}
-                    key={item.id}
-                    title={item.org}
-                    subtitle={item.role}
-                    meta={item.period}
-                    bullets={item.highlights}
-                  />
-                ))
-              ) : (
-                <p className="text-[11px]" style={{ color: "#404040" }}>暂未填写校园经历</p>
-              )}
-            </div>
-          </PdfSection>
-
-          <PdfSection accent={accent} title="项目经历">
-            <div className="space-y-3">
-              {resume.projects.map((project) => (
-                <EntryBlock accent={accent}
-                  key={project.id}
-                  title={project.title || "项目名称"}
-                  subtitle={project.year || "项目时间"}
-                  meta={project.tags.join(" · ")}
-                  bullets={[project.description, project.impact].filter(Boolean)}
-                  extra={project.link}
-                />
+        {resume.awards.length > 0 ? (
+          <div style={{ flex: 1 }}>
+            <PdfSection accent={accent} title="获奖 / 证书">
+              {resume.awards.map((item) => (
+                <div key={item.id} style={{ marginBottom: 4, fontSize: 11 }}>
+                  <span style={{ fontWeight: 600 }}>{item.title}</span>
+                  <span style={{ color: "#999", marginLeft: 6 }}>{item.year}</span>
+                  {item.issuer ? (
+                    <div style={{ color: "#777", marginTop: 1 }}>{item.issuer}</div>
+                  ) : null}
+                </div>
               ))}
-            </div>
-          </PdfSection>
-        </main>
+            </PdfSection>
+          </div>
+        ) : null}
       </div>
+
+      {/* Self evaluation */}
+      {resume.evaluation.length > 0 ? (
+        <PdfSection accent={accent} title="自我评价">
+          <BulletList items={resume.evaluation} accent={accent} />
+        </PdfSection>
+      ) : resume.basics.summary ? (
+        <PdfSection accent={accent} title="自我评价">
+          <p style={{ fontSize: 11, color: "#555", lineHeight: 1.7, margin: 0 }}>
+            {resume.basics.summary}
+          </p>
+        </PdfSection>
+      ) : null}
     </div>
   );
 }
 
-function PdfSection({
-  title,
-  accent,
-  children,
-}: {
-  title: string;
-  accent: string;
-  children: React.ReactNode;
-}) {
+/* === Small helpers === */
+
+function PdfSection({ title, accent, children }: { title: string; accent: string; children: React.ReactNode }) {
   return (
-    <section>
-      <div className="mb-2 pb-1" style={{ borderBottom: `1.5px solid ${accent}` }}>
-        <h2 className="text-[16px] font-bold">{title}</h2>
+    <section style={{ marginBottom: 14, pageBreakInside: "avoid" }}>
+      <div style={{ borderBottom: `1.2px solid ${accent}`, marginBottom: 8, paddingBottom: 3 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: accent }}>{title}</h2>
       </div>
       {children}
     </section>
   );
 }
 
-function EntryBlock({
-  title,
-  subtitle,
-  meta,
-  bullets,
-  extra,
-  accent,
-}: {
-  title: string;
-  subtitle: string;
-  meta?: string;
-  bullets: string[];
-  extra?: string;
-  accent: string;
-}) {
+function EntryItem({ children, accent: _a }: { children: React.ReactNode; accent: string }) {
+  return <div style={{ marginBottom: 10, pageBreakInside: "avoid" }}>{children}</div>;
+}
+
+function EntryTitle({ title, subtitle, meta, accent }: { title: string; subtitle?: string; meta?: string; accent: string }) {
   return (
-    <article>
-      <div className="flex items-start justify-between gap-3 text-[12px]">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h3 className="text-[13px] font-bold">{title}</h3>
-            <span className="font-semibold" style={{ color: accent }}>{subtitle}</span>
-          </div>
-          {meta ? (
-            <p className="mt-1 leading-5" style={{ color: "#404040" }}>
-              {meta}
-            </p>
-          ) : null}
-        </div>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
+      <div>
+        <span style={{ fontWeight: 700, fontSize: 13 }}>{title}</span>
+        {subtitle ? <span style={{ fontSize: 12, color: accent, marginLeft: 10, fontWeight: 600 }}>{subtitle}</span> : null}
       </div>
-      <ul className="mt-1.5 space-y-1 text-[11px] leading-5">
-        {bullets.length > 0 ? (
-          bullets.map((item) => (
-            <li key={item} className="flex gap-2">
-              <span className="shrink-0" style={{ color: accent }}>●</span>
-              <span>{item}</span>
-            </li>
-          ))
-        ) : (
-          <li className="flex gap-2" style={{ color: "#404040" }}>
-            <span className="shrink-0" style={{ color: accent }}>●</span>
-            <span>补充结果、职责和具体影响，会让 PDF 更完整。</span>
-          </li>
-        )}
-      </ul>
-      {extra ? (
-        <p className="mt-1 text-[10px]" style={{ color: "#404040" }}>
-          {extra}
-        </p>
-      ) : null}
-    </article>
+      {meta ? <span style={{ fontSize: 10, color: "#888", whiteSpace: "nowrap" }}>{meta}</span> : null}
+    </div>
+  );
+}
+
+function BulletList({ items, accent }: { items: string[]; accent: string }) {
+  return (
+    <ul style={{ margin: "2px 0 0 0", padding: "0 0 0 14px", listStyle: "none" }}>
+      {items.map((item) => (
+        <li key={item} style={{ fontSize: 11, color: "#444", lineHeight: 1.65, marginBottom: 1, position: "relative", paddingLeft: 10 }}>
+          <span style={{ position: "absolute", left: 0, top: 0, color: accent, fontWeight: 700 }}>·</span>
+          {item}
+        </li>
+      ))}
+    </ul>
   );
 }
