@@ -22,11 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { ResumePreview } from "@/components/public/resume-preview";
-import {
-  LANDSCAPE_STAGE_HEIGHT,
-  LANDSCAPE_STAGE_WIDTH,
-  ResumeStage,
-} from "@/components/public/resume-stage";
+import { ResumePdfPage } from "@/components/public/resume-pdf-page";
 import { Button } from "@/components/ui/button";
 import { demoResume } from "@/lib/data/demo-resume";
 import {
@@ -828,7 +824,12 @@ export function DashboardShell() {
       ) : null}
 
       <div className="mb-6">
-        <ResumePreview resume={resume} publicUrl={publicUrl} />
+        <ResumePreview
+          resume={resume}
+          onThemeChange={(theme) =>
+            setResume((current) => ({ ...current, theme }))
+          }
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -1653,14 +1654,8 @@ export function DashboardShell() {
       </div>
 
       <div className="pointer-events-none fixed left-[-200vw] top-0">
-        <div
-          id="resume-export-source"
-          style={{
-            width: LANDSCAPE_STAGE_WIDTH,
-            height: LANDSCAPE_STAGE_HEIGHT,
-          }}
-        >
-          <ResumeStage resume={resume} />
+        <div id="resume-export-source">
+          <ResumePdfPage resume={resume} />
         </div>
       </div>
     </main>
