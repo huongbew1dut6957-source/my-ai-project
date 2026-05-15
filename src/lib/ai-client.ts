@@ -1,4 +1,5 @@
-import { loadEnvConfig } from "@next/env";
+import fs from "node:fs";
+import path from "node:path";
 
 type AIProvider = "anthropic" | "openai";
 
@@ -9,32 +10,58 @@ interface AIClientConfig {
   model: string;
 }
 
+let _cached: AIClientConfig | null | undefined;
+
 function getConfig(): AIClientConfig | null {
-  const read = (key: string) => process.env[key]?.trim() || "";
-  const loadLocalEnv = () => loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production", console, true);
+  if (_cached !== undefined) return _cached;
 
-  let apiKey = read("AI_API_KEY");
-  let legacyKey = read("ANTHROPIC_API_KEY");
-
-  if (!apiKey && !legacyKey) {
-    loadLocalEnv();
-    apiKey = read("AI_API_KEY");
-    legacyKey = read("ANTHROPIC_API_KEY");
+  function parseEnvFile(filePath: string): Record<string, string> {
+    if (!fs.existsSync(filePath)) return {};
+    const content = fs.readFileSync(filePath, "utf-8");
+    const result: Record<string, string> = {};
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx === -1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      let value = trimmed.slice(eqIdx + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      result[key] = value;
+    }
+    return result;
   }
 
+  // Merge .env.local + .env into a flat env object
+  const cwd = process.cwd();
+  const env: Record<string, string> = { ...process.env as Record<string, string> };
+  const localEnv = parseEnvFile(path.join(cwd, ".env.local"));
+  const defaultEnv = parseEnvFile(path.join(cwd, ".env"));
+  Object.assign(env, defaultEnv, localEnv); // .env.local wins
+
+  const read = (key: string) => (env[key] ?? "").trim();
+
+  const apiKey = read("AI_API_KEY");
+  const legacyKey = read("ANTHROPIC_API_KEY");
   const provider = (read("AI_API_PROVIDER") || read("AI_PROVIDER")) as AIProvider | undefined;
   const baseUrl = read("AI_API_BASE_URL") || read("AI_BASE_URL");
   const model = read("AI_MODEL");
 
   if (!apiKey) {
     if (legacyKey) {
-      return {
+      _cached = {
         provider: "anthropic",
         apiKey: legacyKey,
         baseUrl: "",
         model: model || "claude-sonnet-4-20250514",
       };
+      return _cached;
     }
+    _cached = null;
+    console.error("[ai-client] No AI_API_KEY found in .env.local or process.env");
     return null;
   }
 
@@ -42,12 +69,13 @@ function getConfig(): AIClientConfig | null {
   const defaultModel =
     resolvedProvider === "anthropic" ? "claude-sonnet-4-20250514" : "deepseek-chat";
 
-  return {
+  _cached = {
     provider: resolvedProvider,
     apiKey,
     baseUrl,
     model: model || defaultModel,
   };
+  return _cached;
 }
 
 interface AIRequest {
