@@ -579,7 +579,7 @@ export function DashboardShell() {
         <div className="glass-card p-6">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <p className="mb-2 inline-block rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-purple-500/25">
+              <p className="mb-2 inline-block rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-6 py-2.5 text-base font-bold text-white shadow-lg shadow-purple-500/25">
                 投不同岗，不用重写简历
               </p>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
