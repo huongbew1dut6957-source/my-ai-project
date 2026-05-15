@@ -579,11 +579,13 @@ export function DashboardShell() {
         <div className="glass-card p-6">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <p className="section-kicker">投不同岗，不用重写简历</p>
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              <p className="mb-2 inline-block rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-5 py-2 text-sm font-bold text-white shadow-lg shadow-purple-500/25">
+                投不同岗，不用重写简历
+              </p>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
                 你的 AI 简历工作台
               </h1>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-500">
                 上传简历或从零开始编辑，AI 帮你持续适配不同岗位。导入 → 优化 → 导出，三步搞定。
               </p>
             </div>
