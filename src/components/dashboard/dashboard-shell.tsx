@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { useDeferredValue, useEffect, useEffectEvent, useState, useTransition } from "react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import {
   AlertTriangle,
@@ -477,46 +475,64 @@ export function DashboardShell() {
     setStatus("已导入解析内容，请检查并保存。");
   };
 
-  const exportPdf = async () => {
-    const target = document.getElementById("resume-export-source");
-    if (!target) return;
+  const exportPdf = () => {
+    const source = document.getElementById("resume-export-source");
+    if (!source) return;
 
-    setStatus("正在生成高质量 PDF...");
+    setStatus("正在准备打印...");
 
-    if ("fonts" in document) {
-      await (document as Document & { fonts: { ready: Promise<void> } }).fonts.ready;
-    }
+    const styles = Array.from(document.querySelectorAll("style, link[rel=stylesheet]"))
+      .map((el) => el.outerHTML)
+      .join("\n");
 
-    const canvas = await html2canvas(target, {
-      scale: 3,
-      backgroundColor: "#ffffff",
-      useCORS: true,
-      width: target.scrollWidth,
-      height: target.scrollHeight,
-      windowWidth: target.scrollWidth,
-      windowHeight: target.scrollHeight,
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>${resume.basics.fullName || "简历"}</title>
+<style>
+  @page { size: A4; margin: 12mm 14mm; }
+  body {
+    margin: 0; padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  section, article, .item, .entry { page-break-inside: avoid; }
+  h1, h2, h3, p, li { orphans: 2; widows: 2; }
+  .page-break { page-break-before: always; }
+  @media screen {
+    body { background: #fff; display: flex; justify-content: center; padding: 20px; }
+  }
+</style>
+${styles}
+</head>
+<body>
+  <div style="width:794px; margin:0 auto;">
+    ${source.innerHTML}
+  </div>
+  <script>
+    document.fonts?.ready?.then(() => {
+      window.print();
+      setTimeout(() => window.close(), 200);
     });
+  </\<script>
+</body>
+</html>`;
 
-    const image = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "pt", "a4");
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const imageWidth = pdfWidth;
-    const imageHeight = (canvas.height * imageWidth) / canvas.width;
-    let remainingHeight = imageHeight;
-    let position = 0;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const printWindow = window.open(url, "_blank");
 
-    pdf.addImage(image, "PNG", 0, position, imageWidth, imageHeight);
-    remainingHeight -= pdf.internal.pageSize.getHeight();
-
-    while (remainingHeight > 0) {
-      position -= pdf.internal.pageSize.getHeight();
-      pdf.addPage();
-      pdf.addImage(image, "PNG", 0, position, imageWidth, imageHeight);
-      remainingHeight -= pdf.internal.pageSize.getHeight();
+    if (!printWindow) {
+      setStatus("请允许弹出窗口以导出 PDF");
+      URL.revokeObjectURL(url);
+      return;
     }
 
-    pdf.save(`${resume.slug || "resume"}.pdf`);
-    setStatus("PDF 已导出");
+    setStatus("打印对话框已打开（选择'另存为 PDF'）");
+
+    printWindow.addEventListener("load", () => {
+      URL.revokeObjectURL(url);
+    });
   };
 
   const signOut = async () => {
