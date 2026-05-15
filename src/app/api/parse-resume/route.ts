@@ -35,7 +35,14 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
           }
         }
       }
-      const result = texts.join(" ");
+      let result = texts.join(" ");
+      let prev: string;
+      do {
+        prev = result;
+        result = result.replace(/[一-鿿㐀-䶿] [一-鿿㐀-䶿]/g, (m) =>
+          m[0] + m[2],
+        );
+      } while (result !== prev);
       if (!result.trim()) {
         reject(new Error("PDF 文件无法读取文字，可能为扫描件或图片型 PDF。"));
       } else {
@@ -63,28 +70,37 @@ async function parseWithAI(rawText: string): Promise<{ ok: true; profile: Partia
   const configError = getAIErrorMessage();
   if (configError) return { ok: false, message: configError };
 
-  const systemPrompt = `你是一个专业的简历解析助手。用户会提供一份从 PDF 或 Word 文件中提取的简历纯文本。
-请仔细阅读文本，将其解析为结构化的 JSON 数据。只返回 JSON，不要包含其他内容。
+  const systemPrompt = `你是一个专业的简历解析助手，从 PDF 提取的纯文本中提取结构化信息。严格只返回 JSON，不要解释。
 
-规则：
-1. 从文本中提取所有可识别的字段，缺失的字段留空字符串或空数组。
-2. 姓名、邮箱、电话、出生日期、地点、个人网站、GitHub、LinkedIn、求职方向（headline）、个人简介（summary）放入 basics 对象。
-3. 工作/实习经历放入 experiences 数组，每项包含 company、role、period、location、highlights。
-4. 项目经历放入 projects 数组，每项包含 title、year、description、impact、link、tags。
-5. 教育经历放入 education 数组，每项包含 school、major、degree、period、gpa、courses。
-6. 校园/社团经历放入 campus 数组，每项包含 org、role、period、highlights。
-7. 技能放入 skills 数组，每项包含 category、items。
-8. 获奖/证书放入 awards 数组，每项包含 title、issuer、year、description。
-9. 多条个人评价放入 evaluation 字符串数组。
-10. 保持原文信息不变，不要编造内容。`;
+提取要点：
+- 文本开头的第一个中文名就是姓名(fullName)。中文简历通常以"张三出生日期..."或"张三联系电话..."开头。
+- "出生日期"后面的日期提取到 basics.birth，如"2002年7月10日"
+- "联系电话"后面的数字提取到 basics.phone
+- "邮箱"后面的地址提取到 basics.email
+- 教育经历格式："学校名 专业 学位 时间"，GPA 和课程从紧随其后的文字提取
+- 实习/工作经历格式："公司名 岗位 时间"，亮点从紧随其后的描述文字提取
 
-  const userPrompt = `请解析以下简历文本：\n\n${rawText}`;
+JSON 结构（缺失字段用 "" 或 []）：{
+  "basics": {"fullName":"","email":"","phone":"","birth":"","headline":"","summary":"","location":"","website":"","github":"","linkedin":""},
+  "education": [{"school":"","major":"","degree":"","period":"","gpa":"","courses":[]}],
+  "experiences": [{"company":"","role":"","period":"","location":"","highlights":[]}],
+  "projects": [{"title":"","year":"","description":"","impact":"","link":"","tags":[]}],
+  "campus": [{"org":"","role":"","period":"","highlights":[]}],
+  "skills": [{"category":"","items":[]}],
+  "awards": [{"title":"","issuer":"","year":"","description":""}],
+  "evaluation": [""]
+}`;
+
+  const userPrompt = `请解析以下简历文本，务必提取文本开头的姓名和出生日期：\n\n${rawText}`;
 
   const content = await callAI({ systemPrompt, userPrompt, maxTokens: 4096 });
 
   if (!content) {
     return { ok: false, message: "AI 调用失败，请检查 API Key 和网络连接。" };
   }
+
+  console.log("[parse-resume] AI response length:", content.length);
+  console.log("[parse-resume] AI first 200:", content.substring(0, 200));
 
   try {
     const jsonMatch = content.match(/```(?:json)?\n?([\s\S]*?)```/);
