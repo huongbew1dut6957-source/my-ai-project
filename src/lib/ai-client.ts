@@ -1,3 +1,5 @@
+import { loadEnvConfig } from "@next/env";
+
 type AIProvider = "anthropic" | "openai";
 
 interface AIClientConfig {
@@ -8,13 +10,23 @@ interface AIClientConfig {
 }
 
 function getConfig(): AIClientConfig | null {
-  const provider = (process.env.AI_API_PROVIDER || process.env.AI_PROVIDER) as AIProvider | undefined;
-  const apiKey = process.env.AI_API_KEY;
-  const baseUrl = process.env.AI_API_BASE_URL || process.env.AI_BASE_URL || "";
-  const model = process.env.AI_MODEL || "";
+  const read = (key: string) => process.env[key]?.trim() || "";
+  const loadLocalEnv = () => loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production", console, true);
+
+  let apiKey = read("AI_API_KEY");
+  let legacyKey = read("ANTHROPIC_API_KEY");
+
+  if (!apiKey && !legacyKey) {
+    loadLocalEnv();
+    apiKey = read("AI_API_KEY");
+    legacyKey = read("ANTHROPIC_API_KEY");
+  }
+
+  const provider = (read("AI_API_PROVIDER") || read("AI_PROVIDER")) as AIProvider | undefined;
+  const baseUrl = read("AI_API_BASE_URL") || read("AI_BASE_URL");
+  const model = read("AI_MODEL");
 
   if (!apiKey) {
-    const legacyKey = process.env.ANTHROPIC_API_KEY;
     if (legacyKey) {
       return {
         provider: "anthropic",
