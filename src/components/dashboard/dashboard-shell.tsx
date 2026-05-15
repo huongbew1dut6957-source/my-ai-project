@@ -579,12 +579,12 @@ export function DashboardShell() {
         <div className="glass-card p-6">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <p className="section-kicker">Workspace</p>
+              <p className="section-kicker">投不同岗，不用重写简历</p>
               <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                AI 网页简历控制台
+                你的 AI 简历工作台
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-                这里可以直接编辑基础信息、项目作品、实习经历、技能和获奖内容，右侧实时预览公开主页效果。
+                上传简历或从零开始编辑，AI 帮你持续适配不同岗位。导入 → 优化 → 导出，三步搞定。
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -1184,7 +1184,9 @@ export function DashboardShell() {
               ))}
             </div>
           </EditorCard>
+        </section>
 
+        <section className="space-y-5">
           <EditorCard
             title="教育经历"
             description="按学历由高到低填写，课程用逗号分隔。"
@@ -1334,9 +1336,7 @@ export function DashboardShell() {
               ))}
             </div>
           </EditorCard>
-        </section>
 
-        <section className="space-y-5">
           <EditorCard
             title="技能与获奖"
             description="技能会影响岗位推荐结果，获奖会展示在左侧亮点区。"
@@ -1475,8 +1475,11 @@ export function DashboardShell() {
               </div>
             </div>
           </EditorCard>
+        </section>
+      </div>
 
-          <EditorCard
+      <div className="mb-6 grid gap-6 xl:grid-cols-2">
+        <EditorCard
             title="岗位推荐"
             description="根据你填入的技能、项目和经历关键词，动态计算更适合的投递方向。"
           >
@@ -1645,7 +1648,6 @@ export function DashboardShell() {
               ) : null}
             </div>
           </EditorCard>
-        </section>
       </div>
 
       <div className="pointer-events-none fixed left-[-200vw] top-0">
