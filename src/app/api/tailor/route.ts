@@ -3,6 +3,7 @@ import { callAI, getAIErrorMessage } from "@/lib/ai-client";
 
 interface TailorRequest {
   resume: {
+    basics?: { fullName?: string };
     experiences?: Array<{
       id: string;
       company: string;
@@ -16,7 +17,9 @@ interface TailorRequest {
       impact: string;
     }>;
   };
-  jobRequirements: string;
+  jobRequirements?: string;
+  jobTitle?: string;
+  company?: string;
 }
 
 interface TailorExperience {
@@ -38,11 +41,14 @@ interface TailorResponse {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as TailorRequest;
-    const { resume, jobRequirements } = body;
+    const { resume, jobRequirements, jobTitle, company } = body;
 
-    if (!jobRequirements?.trim()) {
+    const hasFullJD = !!jobRequirements?.trim();
+    const hasJobTitle = !!jobTitle?.trim();
+
+    if (!hasFullJD && !hasJobTitle) {
       return NextResponse.json(
-        { message: "请填写目标岗位描述。" },
+        { message: "请填写目标岗位描述或至少输入岗位名称。" },
         { status: 400 },
       );
     }
@@ -55,14 +61,14 @@ export async function POST(request: Request) {
     const experiencesContext = (resume.experiences ?? [])
       .map(
         (exp) =>
-          `[经历] ${exp.role} @ ${exp.company}\n${exp.highlights.map((h) => `- ${h}`).join("\n")}`,
+          `[${exp.id}] ${exp.role} @ ${exp.company}\n${exp.highlights.map((h) => `- ${h}`).join("\n")}`,
       )
       .join("\n\n");
 
     const projectsContext = (resume.projects ?? [])
       .map(
         (proj) =>
-          `[项目] ${proj.title}\n描述: ${proj.description}\n影响: ${proj.impact}`,
+          `[${proj.id}] ${proj.title}\n描述: ${proj.description}\n影响: ${proj.impact}`,
       )
       .join("\n\n");
 
@@ -75,16 +81,24 @@ export async function POST(request: Request) {
       );
     }
 
-    const systemPrompt =
-      "你是一个专业的简历优化助手。根据目标岗位要求，重写简历中的经历描述和项目内容，使其更贴合目标岗位。保持事实不变，突出与目标岗位相关的关键词和成果。只返回 JSON，不要包含其他内容。";
+    const hrPersona = `你是某头部互联网公司有 8 年招聘经验的 HR 负责人，面试过 500+ 校招和社招候选人。你深谙每个岗位 JD 背后的真实用人需求：JD 写"需求分析"实际是"能不能独立和业务方聊清楚他要什么"；JD 写"SQL"实际是"进去要自己跑数据发现问题"。`;
 
-    const userPrompt = `目标岗位要求：
-${jobRequirements}
+    let jobContext: string;
+    if (hasFullJD) {
+      jobContext = `目标岗位的完整描述：\n${jobRequirements}`;
+    } else {
+      const companyStr = company ? ` @ ${company}` : "";
+      jobContext = `目标岗位：${jobTitle}${companyStr}\n\n请根据你的行业经验，推断这个岗位最看重的 3-5 项核心能力和典型工作场景，然后据此优化简历内容。`;
+    }
+
+    const systemPrompt = `${hrPersona}\n\n根据目标岗位要求，重写简历中的经历和项目描述，突出最能打动面试官的关键词和成果。保持事实不变，不要编造数据。只返回 JSON。`;
+
+    const userPrompt = `${jobContext}
 
 当前简历内容：
 ${context}
 
-请按以下 JSON 格式返回优化建议，id 保持原样不变：
+返回 JSON（id 保持原样）：
 {"experiences":[{"id":"...","tailoredHighlights":["..."]}],"projects":[{"id":"...","tailoredDescription":"...","tailoredImpact":"..."}]}`;
 
     const content = await callAI({ systemPrompt, userPrompt, maxTokens: 4096 });

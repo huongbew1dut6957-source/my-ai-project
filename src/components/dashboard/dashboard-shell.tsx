@@ -93,6 +93,21 @@ export function DashboardShell() {
     skills: true,
     awards: true,
   });
+  const [healthReport, setHealthReport] = useState<{
+    score: number;
+    strengths: string[];
+    weaknesses: string[];
+    suggestions: string[];
+  } | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [gapResult, setGapResult] = useState<{
+    matched: Array<{ requirement: string; evidence: string; level: string }>;
+    gaps: Array<{ requirement: string; impact: string; fix: string }>;
+    summary: string;
+  } | null>(null);
+  const [gapLoading, setGapLoading] = useState(false);
+  const [jobTitle, setJobTitle] = useState("");
+  const [jobCompany, setJobCompany] = useState("");
   const [isSaving, startSaveTransition] = useTransition();
   const deferredResume = useDeferredValue(resume);
   const supabaseClient = getSupabaseBrowserClient();
@@ -316,22 +331,25 @@ export function DashboardShell() {
   };
 
   const handleTailor = async () => {
-    if (!jobRequirements.trim()) return;
+    const jd = jobRequirements.trim();
+    const jt = jobTitle.trim();
+    if (!jd && !jt) return;
     setTailoringLoading(true);
     setTailorError("");
     setTailoringResult(null);
+    setGapResult(null);
 
     try {
+      const payload: Record<string, unknown> = {
+        resume: { experiences: resume.experiences, projects: resume.projects },
+      };
+      if (jd) payload.jobRequirements = jd;
+      else { payload.jobTitle = jt; payload.company = jobCompany.trim(); }
+
       const response = await fetch("/api/tailor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resume: {
-            experiences: resume.experiences,
-            projects: resume.projects,
-          },
-          jobRequirements: jobRequirements.trim(),
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -374,6 +392,51 @@ export function DashboardShell() {
       ),
     }));
     setStatus("已应用该项目的优化建议");
+  };
+
+  const runHealthCheck = async () => {
+    setHealthLoading(true);
+    setHealthReport(null);
+    try {
+      const res = await fetch("/api/resume-health-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resume }),
+      });
+      const data = await res.json();
+      if (data.report) setHealthReport(data.report);
+      setStatus("健康检查完成，得分 " + data.report?.score + "/100");
+    } catch {
+      setStatus("健康检查失败");
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+
+  const runGapAnalysis = async () => {
+    const jd = jobRequirements.trim();
+    const jt = jobTitle.trim();
+    if (!jd && !jt) return;
+    setGapLoading(true);
+    setGapResult(null);
+    try {
+      const payload: Record<string, unknown> = { resume: { basics: resume.basics, experiences: resume.experiences, skills: resume.skills, education: resume.education, projects: resume.projects } };
+      if (jd) payload.jobRequirements = jd;
+      else { payload.jobTitle = jt; if (jobCompany.trim()) payload.jobRequirements = jobCompany.trim(); }
+
+      const res = await fetch("/api/gap-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.analysis) setGapResult(data.analysis);
+      setStatus("差距分析完成");
+    } catch {
+      setStatus("差距分析失败");
+    } finally {
+      setGapLoading(false);
+    }
   };
 
   const handleFileUpload = async (file: File) => {
@@ -1524,35 +1587,90 @@ export function DashboardShell() {
           </EditorCard>
 
           <EditorCard
-            title="岗位优化（AI）"
-            description="粘贴目标岗位描述，AI 会重写你的经历与项目描述以提高匹配度。"
+            title="岗位优化 + 健康检查（AI）"
+            description="输入岗位名即可智能优化，或粘贴 JD 做深度匹配。"
           >
             <div className="space-y-4">
-              <div>
-                <label className="editor-label">目标岗位描述 / 要求</label>
-                <textarea
-                  className="editor-input min-h-32"
-                  value={jobRequirements}
-                  onChange={(e) => {
-                    setJobRequirements(e.target.value);
-                    setTailoringResult(null);
-                    setTailorError("");
-                  }}
-                  placeholder="粘贴岗位 JD、技术栈要求、职责描述..."
-                />
+              {/* Quick input: job title */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="editor-label">目标岗位</label>
+                  <input
+                    className="editor-input"
+                    value={jobTitle}
+                    onChange={(e) => { setJobTitle(e.target.value); setTailoringResult(null); setTailorError(""); }}
+                    placeholder="如：AI 产品经理"
+                  />
+                </div>
+                <div>
+                  <label className="editor-label">公司（选填）</label>
+                  <input
+                    className="editor-input"
+                    value={jobCompany}
+                    onChange={(e) => setJobCompany(e.target.value)}
+                    placeholder="如：字节跳动"
+                  />
+                </div>
               </div>
 
-              <Button
-                onClick={handleTailor}
-                disabled={tailoringLoading || !jobRequirements.trim()}
-              >
-                {tailoringLoading ? (
-                  <LoaderCircle className="animate-spin" size={16} />
-                ) : (
-                  <Sparkles size={16} />
-                )}
-                {tailoringLoading ? "AI 优化中..." : "生成优化版"}
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleTailor} disabled={tailoringLoading || (!jobRequirements.trim() && !jobTitle.trim())}>
+                  {tailoringLoading ? <LoaderCircle className="animate-spin" size={16} /> : <Sparkles size={16} />}
+                  {tailoringLoading ? "优化中..." : "一键优化"}
+                </Button>
+                <Button variant="secondary" onClick={runGapAnalysis} disabled={gapLoading || (!jobRequirements.trim() && !jobTitle.trim())}>
+                  {gapLoading ? <LoaderCircle className="animate-spin" size={16} /> : <Sparkles size={16} />}
+                  {gapLoading ? "分析中..." : "差距分析"}
+                </Button>
+                <Button variant="secondary" onClick={runHealthCheck} disabled={healthLoading}>
+                  {healthLoading ? <LoaderCircle className="animate-spin" size={16} /> : null}
+                  {healthLoading ? "检查中..." : "健康检查"}
+                </Button>
+              </div>
+
+              <details className="group">
+                <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">或粘贴完整 JD</summary>
+                <textarea
+                  className="editor-input min-h-24 mt-2"
+                  value={jobRequirements}
+                  onChange={(e) => { setJobRequirements(e.target.value); setTailoringResult(null); setTailorError(""); }}
+                  placeholder="粘贴完整岗位描述..."
+                />
+              </details>
+
+              {healthReport ? (
+                <div className="rounded-2xl bg-slate-50 border border-black/5 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold">健康得分</span>
+                    <span className={`text-lg font-bold ${healthReport.score >= 80 ? 'text-emerald-600' : healthReport.score >= 60 ? 'text-amber-600' : 'text-rose-600'}`}>{healthReport.score}/100</span>
+                  </div>
+                  {healthReport.weaknesses.slice(0, 3).map((w, i) => (
+                    <p key={i} className="text-xs text-rose-600 mb-1">⚠ {w}</p>
+                  ))}
+                  {healthReport.suggestions.slice(0, 3).map((s, i) => (
+                    <p key={i} className="text-xs text-slate-600 mb-1">💡 {s}</p>
+                  ))}
+                </div>
+              ) : null}
+
+              {gapResult ? (
+                <div className="rounded-2xl bg-slate-50 border border-black/5 p-4">
+                  <p className="text-sm font-semibold mb-2">差距分析</p>
+                  <p className="text-xs text-slate-500 mb-3">{gapResult.summary}</p>
+                  {gapResult.matched?.slice(0, 2).map((m, i) => (
+                    <p key={i} className="text-xs mb-1">
+                      <span className="text-emerald-600">✅ {m.requirement}</span>
+                      <span className="text-slate-400"> — {m.evidence}</span>
+                    </p>
+                  ))}
+                  {gapResult.gaps?.slice(0, 3).map((g, i) => (
+                    <p key={i} className="text-xs mb-1">
+                      <span className="text-rose-600">❌ {g.requirement}</span>
+                      <span className="text-slate-500"> — {g.fix}</span>
+                    </p>
+                  ))}
+                </div>
+              ) : null}
 
               {tailorError ? (
                 <p className="text-sm text-rose-600">{tailorError}</p>
