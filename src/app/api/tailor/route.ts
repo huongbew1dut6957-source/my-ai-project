@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { callAI, getAIErrorMessage } from "@/lib/ai-client";
 
 interface TailorRequest {
   resume: {
@@ -46,12 +47,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { message: "AI 服务未配置（ANTHROPIC_API_KEY）。" },
-        { status: 500 },
-      );
+    const apiError = getAIErrorMessage();
+    if (apiError) {
+      return NextResponse.json({ message: apiError }, { status: 500 });
     }
 
     const experiencesContext = (resume.experiences ?? [])
@@ -89,32 +87,7 @@ ${context}
 请按以下 JSON 格式返回优化建议，id 保持原样不变：
 {"experiences":[{"id":"...","tailoredHighlights":["..."]}],"projects":[{"id":"...","tailoredDescription":"...","tailoredImpact":"..."}]}`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error("Claude API error:", response.status, errorBody);
-      return NextResponse.json(
-        { message: "AI 服务请求失败，请稍后重试。" },
-        { status: 502 },
-      );
-    }
-
-    const claudeResponse = await response.json();
-    const content = claudeResponse.content?.[0]?.text;
+    const content = await callAI({ systemPrompt, userPrompt, maxTokens: 4096 });
 
     if (!content) {
       return NextResponse.json(

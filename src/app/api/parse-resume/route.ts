@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { normalizeResumeProfile } from "@/lib/utils";
 import type { ResumeProfile } from "@/lib/types";
+import { callAI, getAIErrorMessage } from "@/lib/ai-client";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -58,9 +59,9 @@ async function extractTextFromDOCX(buffer: Buffer): Promise<string> {
   return text;
 }
 
-async function parseWithClaude(rawText: string): Promise<Partial<ResumeProfile> | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
+async function parseWithAI(rawText: string): Promise<{ ok: true; profile: Partial<ResumeProfile> } | { ok: false; message: string }> {
+  const configError = getAIErrorMessage();
+  if (configError) return { ok: false, message: configError };
 
   const systemPrompt = `你是一个专业的简历解析助手。用户会提供一份从 PDF 或 Word 文件中提取的简历纯文本。
 请仔细阅读文本，将其解析为结构化的 JSON 数据。只返回 JSON，不要包含其他内容。
@@ -79,34 +80,21 @@ async function parseWithClaude(rawText: string): Promise<Partial<ResumeProfile> 
 
   const userPrompt = `请解析以下简历文本：\n\n${rawText}`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    }),
-  });
+  const content = await callAI({ systemPrompt, userPrompt, maxTokens: 4096 });
 
-  if (!response.ok) {
-    console.error("Claude API error:", response.status);
-    return null;
+  if (!content) {
+    return { ok: false, message: "AI 调用失败，请检查 API Key 和网络连接。" };
   }
 
-  const claudeResponse = await response.json();
-  const content = claudeResponse.content?.[0]?.text;
-
-  if (!content) return null;
-
-  const jsonMatch = content.match(/```(?:json)?\n?([\s\S]*?)```/);
-  const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim();
-  return JSON.parse(jsonStr) as Partial<ResumeProfile>;
+  try {
+    const jsonMatch = content.match(/```(?:json)?\n?([\s\S]*?)```/);
+    const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim();
+    const profile = JSON.parse(jsonStr) as Partial<ResumeProfile>;
+    return { ok: true, profile };
+  } catch (err) {
+    console.error("[parse-resume] JSON parse error:", err instanceof Error ? err.message : err);
+    return { ok: false, message: "AI 返回内容格式异常，请重试。" };
+  }
 }
 
 export async function POST(request: Request) {
@@ -166,15 +154,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const parsed = await parseWithClaude(rawText);
-    if (!parsed) {
+    const parsed = await parseWithAI(rawText);
+    if (!parsed.ok) {
       return NextResponse.json(
-        { message: "AI 解析失败，请检查 ANTHROPIC_API_KEY 是否配置正确。" },
+        { message: parsed.message },
         { status: 502 },
       );
     }
 
-    const profile = normalizeResumeProfile(parsed);
+    const profile = normalizeResumeProfile(parsed.profile);
 
     return NextResponse.json({ profile });
   } catch (error) {
