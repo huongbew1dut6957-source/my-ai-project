@@ -479,47 +479,44 @@ export function DashboardShell() {
 
   const exportPdf = async () => {
     const target = document.getElementById("resume-export-source");
-
     if (!target) return;
 
-    setStatus("正在按当前横向网页预览生成 PDF...");
+    setStatus("正在生成高质量 PDF...");
 
     if ("fonts" in document) {
       await (document as Document & { fonts: { ready: Promise<void> } }).fonts.ready;
     }
 
     const canvas = await html2canvas(target, {
-      scale: 2,
+      scale: 3,
       backgroundColor: "#ffffff",
       useCORS: true,
-      removeContainer: true,
       width: target.scrollWidth,
       height: target.scrollHeight,
       windowWidth: target.scrollWidth,
       windowHeight: target.scrollHeight,
     });
 
-    const image = canvas.toDataURL("image/jpeg", 0.98);
-    const pdf = new jsPDF("l", "pt", "a4");
+    const image = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "pt", "a4");
     const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
     const imageWidth = pdfWidth;
     const imageHeight = (canvas.height * imageWidth) / canvas.width;
     let remainingHeight = imageHeight;
     let position = 0;
 
-    pdf.addImage(image, "JPEG", 0, position, imageWidth, imageHeight);
-    remainingHeight -= pdfHeight;
+    pdf.addImage(image, "PNG", 0, position, imageWidth, imageHeight);
+    remainingHeight -= pdf.internal.pageSize.getHeight();
 
     while (remainingHeight > 0) {
-      position -= pdfHeight;
+      position -= pdf.internal.pageSize.getHeight();
       pdf.addPage();
-      pdf.addImage(image, "JPEG", 0, position, imageWidth, imageHeight);
-      remainingHeight -= pdfHeight;
+      pdf.addImage(image, "PNG", 0, position, imageWidth, imageHeight);
+      remainingHeight -= pdf.internal.pageSize.getHeight();
     }
 
-    pdf.save(`${resume.slug || "resume"}-landscape.pdf`);
-    setStatus("横向 PDF 已按当前预览样式导出");
+    pdf.save(`${resume.slug || "resume"}.pdf`);
+    setStatus("PDF 已导出");
   };
 
   const signOut = async () => {
