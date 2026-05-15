@@ -1,138 +1,172 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
-  Briefcase,
   Download,
-  Globe,
+  FileText,
   Palette,
+  ScanSearch,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { PublicResumePage } from "@/components/public/public-resume-page";
 import { Button } from "@/components/ui/button";
-import { demoResume } from "@/lib/data/demo-resume";
-import { themeEntries } from "@/lib/themes";
 
-const features = [
+const carouselItems = [
   {
-    title: "登录后继续编辑",
-    description: "邮箱 + 密码注册登录，简历内容和主题配置会安全存进 Supabase。",
+    label: "AI 简历解析",
+    desc: "上传 PDF，秒级提取全部信息",
+    gradient: "from-indigo-500 via-purple-500 to-pink-500",
+    icon: ScanSearch,
+  },
+  {
+    label: "岗位定向优化",
+    desc: "输入岗位名，一键生成匹配版本",
+    gradient: "from-emerald-500 via-teal-500 to-cyan-500",
     icon: Sparkles,
   },
   {
-    title: "简历 + 作品集双栏主页",
-    description: "公开页把你的经历、技能和作品放在一个分享链接里，适合投递和社媒展示。",
-    icon: Globe,
-  },
-  {
-    title: "一键切换主题与导出 PDF",
-    description: "同一份内容适配不同岗位语境，支持直接导出高质量 PDF。",
+    label: "专业模板导出",
+    desc: "4 套模板 · A4 竖版 · 所见即所得",
+    gradient: "from-orange-500 via-rose-500 to-red-500",
     icon: Download,
   },
   {
-    title: "岗位推荐",
-    description: "根据技能、项目与经历关键词，智能给出更匹配的投递方向。",
-    icon: Briefcase,
+    label: "数据安全可控",
+    desc: "简历加密存储 · 仅你可见",
+    gradient: "from-sky-500 via-blue-500 to-indigo-600",
+    icon: ShieldCheck,
   },
 ];
 
+const features = [
+  { icon: ScanSearch, title: "导入即解析", desc: "上传 PDF 或 Word，AI 自动识别姓名、教育、经历等全部字段" },
+  { icon: Sparkles, title: "岗位定向优化", desc: "只输入目标岗位名称，AI 自动分析要求并重写简历内容" },
+  { icon: Palette, title: "4 套专业模板", desc: "极光橙 · 石墨灰 · 经典黑 · 深海蓝，一键切换即时预览" },
+  { icon: Download, title: "高质量 PDF 导出", desc: "A4 竖版、页边距、孤行控制，导出效果媲美专业排版" },
+];
+
 export function LandingPage() {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % carouselItems.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const item = carouselItems[current];
+  const Icon = item.icon;
+
   return (
-    <main className="app-shell pb-16 pt-6 sm:pt-8 lg:pb-24">
-      <section className="hero-glow grid items-center gap-10 pb-14 pt-6 lg:grid-cols-[minmax(0,1fr)_560px] lg:pt-12">
+    <main className="app-shell pb-16 pt-6 sm:pt-10 lg:pb-24">
+      {/* Hero */}
+      <section className="grid items-center gap-10 pb-12 pt-4 lg:grid-cols-[1fr_480px] lg:pt-12">
         <div>
-          <div className="section-kicker">AI Resume Platform</div>
-          <h1 className="max-w-3xl font-[family-name:var(--font-fraunces)] text-5xl leading-[0.95] tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">
-            把简历、作品集和岗位推荐
-            <span className="text-orange-500"> 合成一张能打的网页名片</span>
+          <div className="mb-5 inline-block rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-6 py-2.5 text-base font-bold text-white shadow-lg shadow-purple-500/25">
+            投不同岗，不用重写简历
+          </div>
+
+          <h1 className="max-w-2xl font-[family-name:var(--font-fraunces)] text-5xl font-semibold leading-[1.05] tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">
+            一份简历，
+            <br />
+            <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              适配所有岗位
+            </span>
           </h1>
-          <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
-            这个项目基于 Next.js + Supabase 构建，借鉴了 upcv.tech
-            的强视觉首页、模板切换与动态展示节奏，但更强调“左侧简历 + 右侧作品集”的个人主页体验。
+
+          <p className="mt-6 max-w-lg text-lg leading-8 text-slate-500">
+            应届生专属 AI 简历平台。上传简历 → AI 解析 → 岗位优化 → 导出 PDF，三步告别重复改简历。
           </p>
+
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/dashboard">
-              <Button>
-                开始制作
-                <ArrowRight size={16} />
+            <Link href="/auth">
+              <Button className="gap-2 px-6 py-3 text-base">
+                免费开始使用
+                <ArrowRight size={18} />
               </Button>
             </Link>
             <Link href="/p/demo-resume">
-              <Button variant="secondary">查看示例主页</Button>
+              <Button variant="secondary" className="gap-2 px-6 py-3 text-base">
+                <FileText size={18} />
+                查看示例简历
+              </Button>
             </Link>
           </div>
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
-            <Metric value="4+" label="主题模板" />
-            <Metric value="6" label="核心模块" />
-            <Metric value="1 链接" label="简历与作品集统一分享" />
+
+          <div className="mt-10 flex items-center gap-8 text-sm text-slate-400">
+            <span>无需下载 · 网页即用 · 数据加密</span>
           </div>
         </div>
 
-        <div className="glass-card overflow-hidden p-3">
-          <div className="flex items-center justify-between rounded-[24px] bg-slate-950 px-5 py-4 text-white">
-            <div>
-              <p className="text-sm font-semibold">动态网页简历预览</p>
-              <p className="mt-1 text-xs text-white/70">滚动展示、主题切换、投递即分享</p>
+        {/* Auto-rotating showcase */}
+        <div className="glass-card overflow-hidden p-4">
+          <div
+            className={`flex h-[420px] flex-col items-center justify-center rounded-[28px] bg-gradient-to-br ${item.gradient} p-8 text-center text-white transition-all duration-500`}
+          >
+            <Icon size={56} className="mb-4 opacity-80" />
+            <p className="text-2xl font-bold">{item.label}</p>
+            <p className="mt-2 text-sm opacity-80">{item.desc}</p>
+            {/* Dots */}
+            <div className="mt-6 flex gap-2">
+              {carouselItems.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setCurrent(i)}
+                  className={`h-2 rounded-full transition-all ${
+                    i === current ? "w-6 bg-white" : "w-2 bg-white/40"
+                  }`}
+                />
+              ))}
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">
-              <Palette size={14} />
-              {themeEntries.length} Themes
-            </div>
-          </div>
-          <div className="mt-3 h-[540px] overflow-hidden rounded-[28px]">
-            <PublicResumePage
-              resume={demoResume}
-              preview
-              className="origin-top scale-[0.88] sm:scale-[0.82]"
-            />
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {features.map(({ title, description, icon: Icon }) => (
-          <div key={title} className="glass-card p-6">
-            <div className="inline-flex rounded-2xl bg-slate-950 p-3 text-white">
-              <Icon size={20} />
-            </div>
-            <h2 className="mt-5 text-xl font-semibold text-slate-950">{title}</h2>
-            <p className="mt-3 text-sm leading-7 text-slate-600">{description}</p>
-          </div>
-        ))}
-      </section>
-
-      <section className="pt-16">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="section-kicker">Theme Lab</div>
-            <h2 className="font-[family-name:var(--font-fraunces)] text-4xl tracking-tight text-slate-950">
-              一份内容，多种叙事风格
-            </h2>
-          </div>
-          <p className="max-w-2xl text-sm leading-7 text-slate-600">
-            你可以针对不同岗位切换视觉语气，让同一份经历在产品、技术、增长或设计场景下呈现得更合适。
-          </p>
+      {/* Features */}
+      <section className="py-12">
+        <div className="mb-8 text-center">
+          <p className="text-sm font-semibold uppercase tracking-widest text-indigo-500">What You Get</p>
+          <h2 className="mt-3 font-[family-name:var(--font-fraunces)] text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+            更聪明的简历工作方式
+          </h2>
         </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {themeEntries.map((theme) => (
-            <div key={theme.id} className="glass-card overflow-hidden p-4">
-              <div className={`h-32 rounded-[24px] bg-gradient-to-br ${theme.preview}`} />
-              <h3 className="mt-4 text-lg font-semibold text-slate-950">{theme.label}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{theme.eyebrow}</p>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {features.map(({ icon: FIcon, title, desc }) => (
+            <div key={title} className="glass-card p-6">
+              <div className="inline-flex rounded-xl bg-indigo-50 p-2.5 text-indigo-600">
+                <FIcon size={20} />
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-slate-950">{title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">{desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-12">
+        <div className="glass-card overflow-hidden rounded-[32px] bg-gradient-to-r from-slate-900 to-slate-800 p-10 text-center text-white sm:p-16">
+          <h2 className="font-[family-name:var(--font-fraunces)] text-3xl font-semibold tracking-tight sm:text-4xl">
+            还在为每个岗位重写简历？
+          </h2>
+          <p className="mt-4 text-lg text-white/60">
+            投不同岗，不用重写简历。AI 帮你搞定。
+          </p>
+          <div className="mt-8">
+            <Link href="/auth">
+              <Button className="gap-2 bg-white px-8 py-4 text-base font-semibold text-slate-900 hover:bg-white/90">
+                免费注册
+                <ArrowRight size={18} />
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
     </main>
   );
 }
-
-function Metric({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="glass-card p-5">
-      <p className="text-2xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-2 text-sm text-slate-600">{label}</p>
-    </div>
-  );
-}
-
