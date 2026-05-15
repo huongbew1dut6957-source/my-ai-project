@@ -1542,7 +1542,7 @@ export function DashboardShell() {
         </section>
       </div>
 
-      <div className="mb-6 grid gap-6 xl:grid-cols-2">
+      <div className="my-6 grid gap-6 xl:grid-cols-2">
         <EditorCard
             title="岗位推荐"
             description="根据你填入的技能、项目和经历关键词，动态计算更适合的投递方向。"
